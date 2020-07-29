@@ -12,25 +12,32 @@ extern char *optarg;
 extern int optind,opterr,optopt;
 struct file_property
 {
-	unsigned int base_addr;    			//base address of data
-	unsigned int data_lenth;   			//lenth of data to be saved
+	unsigned long long base_addr;    			//base address of data
+	unsigned int data_length;   			//lenth of data to be saved
 	int split_size;			   			//sector capacity
 	char file_save_path[FILEPATHMAX];  	//file save path
 	char name[NAMEMAX];                 //name
 };
 struct file_property fileproperty = {
 	.base_addr = 0,
-	.data_lenth = 0,
+	.data_length = 0,
 	.split_size = SPLITE_SIZE,
 	.name = "data",
 	.file_save_path = "cl", //current location
 };
+
+static int isdigitstr(char *str)
+{
+	return (strspn(str, "0123456789")==strlen(str)); 
+}
+
+
 //dump ddr_base_addr length -s [split_size] -n [base_name] -l d[location]
 typedef enum EMDiskSizeType_{
 	TOTAL_SIZE,
 	FREE_SIZE
 } EMDiskSizeType;
-unsigned long long get_diskSize(char *strDir, EMDiskSizeType  disk_type){
+static unsigned long long get_diskSize(char *strDir, EMDiskSizeType  disk_type){
 
 	struct statfs diskinfo;
 	unsigned long long llcount = 0;
@@ -58,7 +65,7 @@ unsigned long long get_diskSize(char *strDir, EMDiskSizeType  disk_type){
 
 }
 //save data 
-int dump_data_save(unsigned int start, unsigned char *data, unsigned int len, int file_num){
+static int dump_data_save(unsigned int start, unsigned char *data, unsigned int len, int file_num){
 	
 	char * save_dir = "/home/chao-zhang/linux-arm-test/makefile_test";
 	unsigned char *pu8 = NULL;
@@ -101,7 +108,7 @@ int dump_data_save(unsigned int start, unsigned char *data, unsigned int len, in
 		return 0;
 }
 //分成10M进行存储
-void data_separation(unsigned char *data, unsigned int total_size){
+static void data_separation(unsigned char *data, unsigned int total_size){
 
 	unsigned char *data_separated = NULL;
 	unsigned data_offset = 0;
@@ -125,18 +132,31 @@ char* parse_path_option(char* file_path){
 	return file_path;
 }
 //hex only default
-unsigned int parse_data_addr_option(char *data_addr){	
-	unsigned int data_base_addr = 0;
-	sscanf(data_addr,"%x",&data_base_addr); 
+static unsigned long parse_data_addr_option(char *data_addr){	
+	unsigned long long data_base_addr = 0;
+	sscanf(data_addr,"%llx",&data_base_addr); 
 	return data_base_addr;
 }
-int parse_data_lenth(char *data_len){
-	int data_lenth = 0;
+static unsigned int parse_data_length(char *data_len){
+	unsigned int data_lenth = 0;
+	if(!isdigitstr(data_len)){
+		printf("ERR: -l : NUMBERS ONLY\n");
+		return 0;
+	}
 	data_lenth = atoi(data_len);
+
+	if(data_lenth>1024*1024*400){
+		printf("ERR: length should smaller than 400MB\n");
+		return 0;
+	}
 	return data_lenth;
 }
-int parse_slpit_option(char *split_size){
-	int int_split_size = 0;
+static int parse_slpit_option(char *split_size){
+	int int_split_size = -1;
+	if(!isdigitstr(split_size)){
+		printf("ERR: -s : NUMBERS ONLY\n");
+		return -1;
+	}
 	int_split_size = atoi(split_size);
 	return int_split_size;
 }
@@ -145,48 +165,32 @@ char* pares_name_option(char *name_option){
 }
 
 int main(int argc,char *argv[]){
-	char *file_save_path = NULL;
-	unsigned int total_size = 0;
-	
-	
 	/*
-	
-	int data_addr = 0;
+	unsigned long data_addr = 0;
 	unsigned int data_lenth = 0;
-	char *addr = NULL;
+	//char *addr = NULL;
 	int data_test = 9898;
 	int *p=NULL;
-
-	//p = (int *)malloc(int);
-
-
-	addr = (char *)malloc(sizeof(&data_test));
-	
-	printf("addr data_test 0x%x\n", &data_test); 
-	sprintf(addr,"%x",&data_test);
-
-	printf("addr : 0x%x context is :%d\n",&data_test,*(&data_test));
+	//unsigned long a = 0xffffffffeeeffffffff;
+	char *addr = "eeeeefffffffff";
+	//addr = (char *)malloc(sizeof(&data_test));
+	//printf("addr data_test 0x%x\n", &data_test); 
+	//sprintf(addr,"%x",&data_test);
+	//printf("addr : 0x%x context is :%d\n",&data_test,*(&data_test));
 	printf("addr test %s\n", addr);  //将addr转换成字符串地址
-	
-	
-	sscanf(addr,"%x",&data_addr);    //将字符串地址解析回去	
-	
-	p = (unsigned int *)data_addr;
-	
-	printf("data_addr int 0x%8x\n", *(int *)data_addr);	
-	printf("the context of 0x%x is :%x\n",data_addr,*p);
-	
-	
-	free(addr);
-	
+	sscanf(addr,"%llx",&data_addr);    //将字符串地址解析回去	
+	printf("data_addr int 0x%llx\n",data_addr);	
 
+	//printf("-----------------------%llx\n",a);
+	//free(addr);
 */
-	unsigned int ret = 0;
+
+	long long ret = 0;
 	int cmd = 0;
 	if(argc<2){	
 		printf("Usage:\n");
-		printf("-a:base addrress -l: data lenth\n");
-		printf("[-lo:location] [-s:split number] [-n: name] \n");
+		printf("-a:base addrress (HEX) -l: data lenth\n");
+		printf("[-d:location] [-s:split number] [-n: name] \n");
 		return 1;
 	}	
 	//printf("pid : %d\n",getpid());
@@ -195,34 +199,29 @@ int main(int argc,char *argv[]){
 		{
 		case 'a':
 			if(optarg){
-				ret = parse_data_addr_option(optarg);
-				if(ret<0)
-					exit(6);
-				fileproperty.base_addr = ret;
-				printf("base       addr: %x\n",fileproperty.base_addr);
+				fileproperty.base_addr = parse_data_addr_option(optarg);
 			}else{
 				printf("empty option -%c...\n",cmd);
-				exit(7);
+				exit(0);
 			}
 			break;
 		case 'l':
 			if(optarg){
-				printf("data      lenth: %s\n",optarg);
-				ret = parse_data_lenth(optarg);
-				if(ret<0)
+				ret = parse_data_length(optarg);
+				if(ret<=0){
 					exit(6);
-				fileproperty.data_lenth = ret;
+				}	
+				fileproperty.data_length = ret;
 			}else{
 				printf("empty option -%c...\n",cmd);
 				exit(7);
 			}
 			break;
+
 			//optional command
 		case 'd': //save path set
-			
 			if(optarg){
 				strcpy(fileproperty.file_save_path,parse_path_option(optarg));
-				printf("target location: %s\n",fileproperty.file_save_path);
 			} 
 			else{
 				printf("empty option -%c...\n",cmd);
@@ -232,10 +231,10 @@ int main(int argc,char *argv[]){
 		case 's':  //split size
 			if(optarg){
 				ret = parse_slpit_option(optarg);
-				if(ret<0)
+				if(ret<0){
 					exit(6);
+				}	
 				fileproperty.split_size = ret;
-				printf("split    number: %d\n",fileproperty.split_size);
 			}else{
 				printf("empty option -%c...\n",cmd);
 				exit(7);
@@ -244,7 +243,6 @@ int main(int argc,char *argv[]){
 		case 'n':  //name set
 			if(optarg){
 				strcpy(fileproperty.name,pares_name_option(optarg));
-				printf("name ===> prefix: %s\n",fileproperty.name);
 			}else{
 				printf("empty option -%c...\n",cmd);
 				exit(7);
@@ -256,13 +254,19 @@ int main(int argc,char *argv[]){
 	}
 
 	//check the addr and lent infomation
-	if((fileproperty.base_addr < 0 )||(fileproperty.data_lenth<=0)){
-		if(file_save_path != NULL) free(file_save_path);
-		printf("ERR! data_addr and data_lenth are required!\n");
-		printf("-a: data base addr, -l: data_lenth\n");
+	if((fileproperty.base_addr < 0 )||(fileproperty.data_length<=0)){
+		printf("ERR: option data_addr(-a) and data_lenth(-l) are required!\n");
 		return -1;
 	}
 
+	printf("==============>file save   path: %s\n",fileproperty.file_save_path);
+	printf("==============>file save length: %d\n",fileproperty.data_length);
+	printf("==============>file split  size: %d\n",fileproperty.split_size);
+	printf("==============>file split  name: %s\n",fileproperty.name);
+	printf("==============>file base   addr: 0x%llx\n",fileproperty.base_addr);
+	printf(":)\n");
+	
+	
 	/*
 	const unsigned int total_size = 1024*1024*200;    //100MB
 	char data[total_size];

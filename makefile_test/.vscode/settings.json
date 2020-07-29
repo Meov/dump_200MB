@@ -4,6 +4,7 @@
         "array": "c",
         "string": "c",
         "typeindex": "c",
-        "typeinfo": "c"
+        "typeinfo": "c",
+        "random": "c"
     }
 }
