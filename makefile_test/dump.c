@@ -140,7 +140,7 @@ static data_separated_dump(struct file_property fp){
 	unsigned int data_offset = 0;
 	unsigned int file_num;
 
-	for()
+	//for()
 	
 
 
