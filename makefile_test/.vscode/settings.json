@@ -2,6 +2,8 @@
     "C_Cpp.errorSquiggles": "Disabled",
     "files.associations": {
         "array": "c",
-        "string": "c"
+        "string": "c",
+        "typeindex": "c",
+        "typeinfo": "c"
     }
 }
