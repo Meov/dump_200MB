@@ -107,10 +107,10 @@ static int dump_data_save(unsigned int start, unsigned char *data, unsigned int 
 		return 0;
 }
 //分成10M进行存储
-static void data_separation(unsigned char *data, unsigned int total_size,){
+static void data_separation(unsigned char *data, unsigned int total_size){
 
 	unsigned char *data_separated = NULL;
-	unsigned data_offset = 0;
+	unsigned int data_offset = 0;
 	unsigned int file_num;
 	for(file_num = 1; file_num <= SAVE_DATA_ITER; file_num++){
 
@@ -127,6 +127,26 @@ static void data_separation(unsigned char *data, unsigned int total_size,){
 		data_offset = file_num * total_size/SAVE_DATA_ITER;
 	}
 }
+
+static int  data_dumped(unsigned char *data_started, unsigned int data_len, char* name){
+		
+
+
+	return 0;
+}
+
+static data_separated_dump(struct file_property fp){
+	unsigned char* data_started = NULL;
+	unsigned int data_offset = 0;
+	unsigned int file_num;
+
+	for()
+	
+
+
+
+}
+
 //path and disksize check
 static int parameter_cheak(struct file_property fp){
 	char file_save_path[FILEPATHMAX];
