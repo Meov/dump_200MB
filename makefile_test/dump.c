@@ -4,14 +4,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <sys/types.h>
+ #include <dirent.h>
+
 #define FILEPATHMAX 80
 #define NAMEMAX 20
 #define SAVE_DATA_ITER 20   //保存文件次数
 #define SPLITE_SIZE 20
 extern char *optarg;
 extern int optind,opterr,optopt;
-struct file_property
-{
+struct file_property{
 	unsigned long long base_addr;    			//base address of data
 	unsigned int data_length;   			//lenth of data to be saved
 	int split_size;			   			//sector capacity
@@ -25,13 +27,10 @@ struct file_property fileproperty = {
 	.name = "data",
 	.file_save_path = "cl", //current location
 };
-
 static int isdigitstr(char *str)
 {
 	return (strspn(str, "0123456789")==strlen(str)); 
 }
-
-
 //dump ddr_base_addr length -s [split_size] -n [base_name] -l d[location]
 typedef enum EMDiskSizeType_{
 	TOTAL_SIZE,
@@ -108,7 +107,7 @@ static int dump_data_save(unsigned int start, unsigned char *data, unsigned int 
 		return 0;
 }
 //分成10M进行存储
-static void data_separation(unsigned char *data, unsigned int total_size){
+static void data_separation(unsigned char *data, unsigned int total_size,){
 
 	unsigned char *data_separated = NULL;
 	unsigned data_offset = 0;
@@ -128,6 +127,33 @@ static void data_separation(unsigned char *data, unsigned int total_size){
 		data_offset = file_num * total_size/SAVE_DATA_ITER;
 	}
 }
+//path and disksize check
+static int parameter_cheak(struct file_property fp){
+	char file_save_path[FILEPATHMAX];
+	DIR *d = NULL;
+	unsigned long long per_data_size;   //per data size
+	if(!strcmp(fp.file_save_path,"cl")){
+		//save in current path
+		getcwd(file_save_path,FILEPATHMAX);
+	}else{
+		strcpy(file_save_path,fp.file_save_path);
+		d = opendir(file_save_path);
+		if(d == NULL){
+			printf("path not right!\n");
+			closedir(d);
+			return -1;
+		}
+	}
+	unsigned long long disk_space_sount =  get_diskSize(file_save_path,FREE_SIZE);
+	per_data_size = fp.data_length/fp.split_size; 
+	if((disk_space_sount<=10)||(disk_space_sount < per_data_size)){
+		printf(" %s: Lack of space, free: %llu\n",file_save_path,disk_space_sount);
+		return -1;
+	}
+	printf(" %s: Lack of space, free: %lluM\n",file_save_path,disk_space_sount);
+	return 0;
+}
+
 char* parse_path_option(char* file_path){
 	return file_path;
 }
@@ -264,9 +290,12 @@ int main(int argc,char *argv[]){
 	printf("==============>file split  size: %d\n",fileproperty.split_size);
 	printf("==============>file split  name: %s\n",fileproperty.name);
 	printf("==============>file base   addr: 0x%llx\n",fileproperty.base_addr);
+
+	//option parameter check
+	if(parameter_cheak(fileproperty)!=0) return -1;
+	
+	
 	printf(":)\n");
-	
-	
 	/*
 	const unsigned int total_size = 1024*1024*200;    //100MB
 	char data[total_size];
