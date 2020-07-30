@@ -87,7 +87,11 @@ static int  data_dumped(struct file_property fp, int data_num,long len,int is_si
 	char cmd_cmmand[200];
 	sprintf(full_file_path,"%s/%s-%d.txt",fp.file_save_path,fp.name,data_num);
 	sprintf(full_file_name,"%s/%s-%d",fp.file_save_path,fp.name,data_num);
+	
 	file = fopen(full_file_path,"a+");  //create the numbered file
+	
+
+
 	if(file == NULL){
 		printf("file:%s opened err\n",full_file_path);
 		return FILE_ERR;
@@ -128,14 +132,17 @@ static int data_separated_dump(struct file_property fp){
 	printf("==============>file split  name: %s\n",fp.name);
 	printf("==============>file base   addr: 0x%llx\n",fp.base_addr);
 
+
 	for(split_num = 0; split_num < fp.split_size; split_num++){
 		//write one split ..
 		is_single_finish = 0;
 		//printf("%ld\n",fp.data_length/fp.split_size/page_size);
-		for(split_4kb_num = 0; split_4kb_num < fp.data_length/fp.split_size/page_size;split_4kb_num++){
-			if(split_4kb_num == fp.data_length/fp.split_size/page_size-1)  //is one split finished?
+		for(split_4kb_num = 1; split_4kb_num <= fp.data_length/fp.split_size/page_size;split_4kb_num++){
+			if(split_4kb_num == fp.data_length/fp.split_size/page_size)  //is one split finished?
 				is_single_finish = 1;  //last 4Kb flag
+			printf("fp.base_addr: %llx\n",fp.base_addr);
 			data_dumped(fp,split_num,page_size,is_single_finish);
+			fp.base_addr += page_size;    //addr offset 4096Kb
 		}
 	}
 }
@@ -146,7 +153,7 @@ static int ap_query_cp_memory(struct file_property fp){
 	if((fp.data_length) >= MAX_DATA_SIZE){
 		return DATA_TOOBIG;
 	}
-	fd = open("/home/chao-zhang/file_system/makefile_test/0.txt",O_RDWR);
+	fd = open("/home/airobot/dump_200MB/dump_200MB/makefile_test/0.txt",O_RDWR);
 	if(fd < 0){
 		printf("no file/n");
 	}
@@ -155,9 +162,11 @@ static int ap_query_cp_memory(struct file_property fp){
 		close(fd);
 		return -ENOMEM;
 	}
-	fp.base_addr = (unsigned long long )map_addr;
-	//printf("file vertual base addr :%llx\n",fp.base_addr);
-	//printf("=====================>fp.base_addr :%s\n",fp.base_addr);
+	printf("\n\n");
+	printf("=====================>file vertual base addr = %llx\n", (unsigned long long )map_addr);
+	fp.base_addr += (unsigned long long )map_addr;
+	printf("=====================>file vertual base addr + base_addr given = s%llx\n",fp.base_addr);
+	printf("\n\n");
 	data_separated_dump(fp);
 	munmap(map_addr,200*1024*1024);
 	close(fd);
@@ -167,7 +176,7 @@ static int parameter_cheak(struct file_property *fp){
 	char cuurent_path[FILEPATHMAX];
 	DIR *d = NULL;
 	unsigned long long per_data_size;   //per data size
-	
+	long page_size = sysconf(_SC_PAGESIZE);
 	getcwd(cuurent_path,FILEPATHMAX);
 	
 	if(strcmp(fp->file_save_path,"cl")){
@@ -176,7 +185,7 @@ static int parameter_cheak(struct file_property *fp){
 			printf("path not right, default path (current) is used!\n");
 			strcpy(fp->file_save_path,cuurent_path);
 			closedir(d);
-			//return PATH_NOTFOUND;
+			return PATH_NOTFOUND;
 		}
 	}else{
 		strcpy(fp->file_save_path,cuurent_path);
@@ -187,6 +196,21 @@ static int parameter_cheak(struct file_property *fp){
 		printf(" err : %s: Lack of space, free: %llu byte\n",fp->file_save_path,disk_space_sount);
 		return FEW_MEMORY;
 	}
+
+	if(fp->base_addr % 4096 != 0){
+		printf(" ------------------>addr  must be an intergral muiltiple of 4096byte\n");
+		return FILE_ERR;
+	}
+
+	if(fp->data_length < fp->split_size * page_size){
+		printf("data length :%ld is less than split_size*page_size = %ld\n",fp->split_size * page_size);
+		return FILE_ERR;
+	}
+	if(fp->data_length % page_size != 0){
+		printf("datalength must be an intergral muiltiple of 4096byte\n");
+		return FILE_ERR;
+	}
+
 	//printf(" %s: Lack of space, free: %llu byte\n",fp->file_save_path,disk_space_sount);
 	return OK;
 }
@@ -204,7 +228,9 @@ static int parse_data_addr_option(char *data_addr, struct file_property *fp){
 		printf("ERR: -a: HEX ONLY\n");
 		return NOT_NUMBER;
 	}
-	sscanf(data_addr,"%llx",&data_base_addr); 	
+	sscanf(data_addr,"%llx",&data_base_addr); 
+	printf("---------------------------> addr hex: %llx  dec: %lld\n",data_base_addr,data_base_addr);
+
 	fp->base_addr = data_base_addr;
 	return OK;
 }
@@ -240,6 +266,7 @@ static int pares_name_option(char *name_option,struct file_property *fp){
 	return OK;
 }
 int main(int argc,char *argv[]){
+
 	struct file_property fp_set;
 	fp_set = fileproperty;
 
@@ -338,17 +365,21 @@ int main(int argc,char *argv[]){
 	ap_query_cp_memory(fileproperty);
 	
 	
-	//data created!
 	/*
+	//data created!
+	struct file_property fp;
+	char cuurent_path[FILEPATHMAX];
+	getcwd(cuurent_path,FILEPATHMAX);
+	memset(&fp,0,sizeof(struct file_property));
 	const unsigned int total_size = 1024*1024*200;    //100MB
 	//char data[total_size];
 	char *data=malloc(1024*1024*200);
 	for(int i = 0; i<total_size; i++){
 		data[i] = '1';
 	}
-	
-	//data_separation(data,total_size);
-	
-	dump_data_save(0,data,total_size,0);
+	strcpy(fp.file_save_path,cuurent_path);
+	fp.base_addr = (unsigned long long)data;
+	data_dumped(fp,0,total_size,0);
 	*/
+	
 }
