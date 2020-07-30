@@ -6,6 +6,7 @@
         "typeindex": "c",
         "typeinfo": "c",
         "random": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "errno.h": "c"
     }
 }

@@ -6,24 +6,20 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <dirent.h>
-
+#include <fcntl.h>
+#include <errno.h>
 #define FILEPATHMAX 80
-#define NAMEMAX 20
-#define SAVE_DATA_ITER 20   //保存文件次数
-#define SPLITE_SIZE 20
+#define MAX_NAME 80
+#define SPLITE_SIZE 20  //defualt
 #define MAX_DATA_SIZE 1024*1024*200
-
-
-
-
 extern char *optarg;
 extern int optind,opterr,optopt;
 struct file_property{
-	unsigned long long base_addr;    			//base address of data
+	unsigned long long base_addr;    		//base address of data
 	unsigned int data_length;   			//lenth of data to be saved
-	int split_size;			   			//sector capacity
-	char file_save_path[FILEPATHMAX];  	//file save path
-	char name[NAMEMAX];                 //name
+	int split_size;			   				//split size
+	char file_save_path[FILEPATHMAX];  		//file save path
+	char name[MAX_NAME];                	//name
 };
 struct file_property fileproperty = {
 	.base_addr = 0,
@@ -36,17 +32,23 @@ static int isdigitstr(char *str)
 {
 	return (strspn(str, "0123456789")==strlen(str)); 
 }
-//dump ddr_base_addr length -s [split_size] -n [base_name] -l d[location]
+static int ishexstr(char *str)
+{
+	return (strspn(str, "0123456789ABCDEFabcdef")==strlen(str)); 
+}
+
 typedef enum EMDiskSizeType_{
 	TOTAL_SIZE,
 	FREE_SIZE
 } EMDiskSizeType;
 typedef enum ERRCODE{	
-	NOT_NUMBER = -2,
+	NOT_HEX = -3,
+	NOT_NUMBER,
 	DATA_TOOBIG,
 	FEW_PARAMETERS,
 	FEW_MEMORY,
 	PATH_NOTFOUND,
+	FILE_ERR,
 	OK,
 } err_code;
 static unsigned long long get_diskSize(char *strDir, EMDiskSizeType  disk_type){
@@ -63,11 +65,11 @@ static unsigned long long get_diskSize(char *strDir, EMDiskSizeType  disk_type){
 		{
 		case TOTAL_SIZE:
 			llcount = diskinfo.f_blocks * diskinfo.f_bsize;
-			llcount =llcount >> 20;
+			//llcount =llcount >> 20;  //transfor byte to MB
 			break;
 		case FREE_SIZE:
 			llcount = diskinfo.f_bfree * diskinfo.f_bsize;
-			llcount = llcount >> 20;
+			//llcount = llcount >> 20;
 			break;		
 		default:
 			break;
@@ -76,104 +78,90 @@ static unsigned long long get_diskSize(char *strDir, EMDiskSizeType  disk_type){
 	}
 
 }
-//save data 
-static int dump_data_save(unsigned int start, unsigned char *data, unsigned int len, int file_num){
-	
-	char * save_dir = "/home/chao-zhang/linux-arm-test/makefile_test";
+
+static int  data_dumped(struct file_property fp, int data_num,long len,int is_single_finish){
+	char full_file_path[FILEPATHMAX];
+	char full_file_name[MAX_NAME];
+	FILE *file = NULL;
 	unsigned char *pu8 = NULL;
-	char *full_file_name = NULL;
-	char *cmd_cmmand = NULL;
-	
-	FILE *fp = NULL;
-		
-	full_file_name = (char*)malloc(FILEPATHMAX);
-	cmd_cmmand = (char*)malloc(FILEPATHMAX);
-	
-	unsigned long long disk_space_sount =  get_diskSize(save_dir,FREE_SIZE);
-	
-	if(disk_space_sount<=10){
-		printf(" %s: Lack of space, free: %llu\n",save_dir,disk_space_sount);
-		return -1;
+	char cmd_cmmand[200];
+	sprintf(full_file_path,"%s/%s-%d.txt",fp.file_save_path,fp.name,data_num);
+	sprintf(full_file_name,"%s/%s-%d",fp.file_save_path,fp.name,data_num);
+	file = fopen(full_file_path,"a+");  //create the numbered file
+	if(file == NULL){
+		printf("file:%s opened err\n",full_file_path);
+		return FILE_ERR;
 	}
+	fseek(file, 0, SEEK_END);//定位到文件末尾
+	pu8 = (unsigned char*)fp.base_addr;
+	//printf("file:%s created OK\n",full_file_path);
 
-	if(start == 0){
+	fwrite(pu8,sizeof(char),len,file);  //4096 bytes write
 
-		pu8 = (unsigned char *)data;		
-		sprintf(full_file_name,"%s/%d.txt",save_dir,file_num);   //
-		fp = fopen(full_file_name,"wb");  //create the numbered file
-
-		if(fp == NULL){
-			printf("file:%s opened err\n",full_file_name);
-		}
-		//printf("file:%s created OK\n",full_file_name);
-		fwrite(pu8,sizeof(char),len,fp);
-		sprintf(cmd_cmmand,"%s %d.tar %d.txt","tar -czvf",file_num,file_num);  
-		system(cmd_cmmand);													   //tar -czvf ***.tar ***.bin
-		sprintf(cmd_cmmand,"%s %s","rm ",full_file_name);
-		system(cmd_cmmand);			                                           //rm ***.bin
-		fclose(fp);
-		fp = NULL;
+	if(is_single_finish){
+		printf("split %d write finished!\n",data_num);
+		sprintf(cmd_cmmand,"%s %s/%s-%d.tar.gz -C %s/ %s-%d.txt","tar -czPf",fp.file_save_path,fp.name,data_num,
+		fp.file_save_path,fp.name,data_num);  //tar -czvf ***.tar ***.bin
+		//printf("cmd_cmmand: %s\n",cmd_cmmand);
+		system(cmd_cmmand);													   
+		sprintf(cmd_cmmand,"%s %s/%s-%d.txt","rm ",fp.file_save_path,fp.name,data_num);   //rm ***.txt
+		//printf("cmd_cmmand: %s\n",cmd_cmmand);
+		system(cmd_cmmand);	
+		
+		is_single_finish = 0;
 	}
-		
-		free(full_file_name);
-		free(cmd_cmmand);
-		return 0;
+	fclose(file);
+	file = NULL;
+	return OK;
 }
-//分成10M进行存储
-static void data_separation(unsigned char *data, unsigned int total_size){
-
-	unsigned char *data_separated = NULL;
-	unsigned int data_offset = 0;
-	unsigned int file_num;
-	for(file_num = 1; file_num <= SAVE_DATA_ITER; file_num++){
-
-		data_separated = (unsigned char*)malloc(total_size/SAVE_DATA_ITER);
-		memcpy(data_separated,data+data_offset,total_size/SAVE_DATA_ITER);
-		
-		if(dump_data_save(0,data_separated,total_size/SAVE_DATA_ITER,file_num) != 0){
-			printf("save data err\n");
-			break;
-		};
-	
-		//printf("==========> data_offset: 0x%x file_num:%d data addr: 0x%x\n",data_offset,file_num,data+data_offset);
-		free(data_separated);
-		data_offset = file_num * total_size/SAVE_DATA_ITER;
-	}
-}
-
-static int  data_dumped(unsigned char *data_started, unsigned int data_len, char* name){
-		
-
-
-	return 0;
-}
-
 static int data_separated_dump(struct file_property fp){
 	unsigned char* data_started = NULL;
 	unsigned int data_offset = 0;
-	unsigned int file_num;
+	unsigned int split_num;
+	unsigned int split_4kb_num;
+	long page_size = sysconf(_SC_PAGESIZE);
+	int is_single_finish = 0;
+	printf("excutived:\n");
+	printf("==============>file save   path: %s\n",fp.file_save_path);
+	printf("==============>file save length: %d\n",fp.data_length);
+	printf("==============>file split  size: %d\n",fp.split_size);
+	printf("==============>file split  name: %s\n",fp.name);
+	printf("==============>file base   addr: 0x%llx\n",fp.base_addr);
 
-	//for()
-	
-
-
-
+	for(split_num = 0; split_num < fp.split_size; split_num++){
+		//write one split ..
+		is_single_finish = 0;
+		//printf("%ld\n",fp.data_length/fp.split_size/page_size);
+		for(split_4kb_num = 0; split_4kb_num < fp.data_length/fp.split_size/page_size;split_4kb_num++){
+			if(split_4kb_num == fp.data_length/fp.split_size/page_size-1)  //is one split finished?
+				is_single_finish = 1;  //last 4Kb flag
+			data_dumped(fp,split_num,page_size,is_single_finish);
+		}
+	}
 }
 
-int ap_query_cp_memory(unsigned int offset,unsigned int length){
+static int ap_query_cp_memory(struct file_property fp){
 	int fd = -1;
 	void *map_addr = NULL;
-	if((offset + length) >= MAX_DATA_SIZE){
-		return OK;
+	if((fp.data_length) >= MAX_DATA_SIZE){
+		return DATA_TOOBIG;
 	}
-
-
-
-
+	fd = open("/home/chao-zhang/file_system/makefile_test/0.txt",O_RDWR);
+	if(fd < 0){
+		printf("no file/n");
+	}
+	map_addr = mmap(NULL,201*1024*1024,PROT_READ,MAP_SHARED,fd,0);
+	if(map_addr == MAP_FAILED){
+		close(fd);
+		return -ENOMEM;
+	}
+	fp.base_addr = (unsigned long long )map_addr;
+	//printf("file vertual base addr :%llx\n",fp.base_addr);
+	//printf("=====================>fp.base_addr :%s\n",fp.base_addr);
+	data_separated_dump(fp);
+	munmap(map_addr,200*1024*1024);
+	close(fd);
 }
-
-
-
 //path and disksize check
 static int parameter_cheak(struct file_property *fp){
 	char cuurent_path[FILEPATHMAX];
@@ -193,14 +181,13 @@ static int parameter_cheak(struct file_property *fp){
 	}else{
 		strcpy(fp->file_save_path,cuurent_path);
 	}
-	
 	unsigned long long disk_space_sount =  get_diskSize(fp->file_save_path,FREE_SIZE);
 	per_data_size = fp->data_length/fp->split_size; 
-	if((disk_space_sount<=10)||(disk_space_sount < per_data_size)){
-		printf(" %s: Lack of space, free: %llu\n",fp->file_save_path,disk_space_sount);
+	if((disk_space_sount<=10)||(disk_space_sount < (per_data_size))){
+		printf(" err : %s: Lack of space, free: %llu byte\n",fp->file_save_path,disk_space_sount);
 		return FEW_MEMORY;
 	}
-	printf(" %s: Lack of space, free: %lluM\n",fp->file_save_path,disk_space_sount);
+	//printf(" %s: Lack of space, free: %llu byte\n",fp->file_save_path,disk_space_sount);
 	return OK;
 }
 
@@ -212,6 +199,11 @@ static int parse_path_option(char* file_path,struct file_property *fp){
 //hex only default
 static int parse_data_addr_option(char *data_addr, struct file_property *fp){
 	unsigned long long data_base_addr = 0;
+	
+	if(!ishexstr(data_addr)){
+		printf("ERR: -a: HEX ONLY\n");
+		return NOT_NUMBER;
+	}
 	sscanf(data_addr,"%llx",&data_base_addr); 	
 	fp->base_addr = data_base_addr;
 	return OK;
@@ -222,11 +214,14 @@ static int parse_data_length(char *data_len,struct file_property *fp){
 		printf("ERR: -l : NUMBERS ONLY\n");
 		return NOT_NUMBER;
 	}
+	
 	data_lenth = atoi(data_len);
 	if(data_lenth>1024*1024*400){
 		printf("ERR: length should smaller than 400MB\n");
 		return DATA_TOOBIG;
 	}
+
+	
 	fp->data_length = data_lenth;
 	return OK;
 }
@@ -244,27 +239,7 @@ static int pares_name_option(char *name_option,struct file_property *fp){
 	strcpy(fp->name,name_option);
 	return OK;
 }
-
 int main(int argc,char *argv[]){
-	/*
-	unsigned long data_addr = 0;
-	unsigned int data_lenth = 0;
-	//char *addr = NULL;
-	int data_test = 9898;
-	int *p=NULL;
-	//unsigned long a = 0xffffffffeeeffffffff;
-	char *addr = "eeeeefffffffff";
-	//addr = (char *)malloc(sizeof(&data_test));
-	//printf("addr data_test 0x%x\n", &data_test); 
-	//sprintf(addr,"%x",&data_test);
-	//printf("addr : 0x%x context is :%d\n",&data_test,*(&data_test));
-	printf("addr test %s\n", addr);  //将addr转换成字符串地址
-	sscanf(addr,"%llx",&data_addr);    //将字符串地址解析回去	
-	printf("data_addr int 0x%llx\n",data_addr);	
-
-	//printf("-----------------------%llx\n",a);
-	//free(addr);
-*/
 	struct file_property fp_set;
 	fp_set = fileproperty;
 
@@ -282,7 +257,10 @@ int main(int argc,char *argv[]){
 		{
 		case 'a':
 			if(optarg){
-				fileproperty.base_addr = parse_data_addr_option(optarg,&fp_set);
+				ret = parse_data_addr_option(optarg,&fp_set);
+				if(ret != OK){
+					exit(6);
+				}
 			}else{
 				printf("empty option -%c...\n",cmd);
 				exit(0);
@@ -293,8 +271,7 @@ int main(int argc,char *argv[]){
 				ret = parse_data_length(optarg,&fp_set);
 				if(ret != OK){
 					exit(6);
-				}	
-				fileproperty.data_length = ret;
+				}
 			}else{
 				printf("empty option -%c...\n",cmd);
 				exit(7);
@@ -319,8 +296,7 @@ int main(int argc,char *argv[]){
 				ret = parse_slpit_option(optarg,&fp_set);
 				if(ret!=OK){
 					exit(6);
-				}	
-				fileproperty.split_size = ret;
+				}
 			}else{
 				printf("empty option -%c...\n",cmd);
 				exit(7);
@@ -348,31 +324,31 @@ int main(int argc,char *argv[]){
 		printf("ERR: option data_addr(-a) and data_lenth(-l) are required!\n");
 		return -1;
 	}
-	
-	
-	//option parameter check
+	//option parameter check path and disk size check
 	if(parameter_cheak(&fp_set)!=OK) return -1;
-	
-	long page_size = sysconf(_SC_PAGESIZE);
-	printf("page size of this pc : %lu\n",page_size);
 	fileproperty = fp_set;
-	
+
+	printf("entered:\n");
 	printf("==============>file save   path: %s\n",fileproperty.file_save_path);
 	printf("==============>file save length: %d\n",fileproperty.data_length);
 	printf("==============>file split  size: %d\n",fileproperty.split_size);
 	printf("==============>file split  name: %s\n",fileproperty.name);
 	printf("==============>file base   addr: 0x%llx\n",fileproperty.base_addr);
 
-	printf(":)\n");
+	ap_query_cp_memory(fileproperty);
 	
 	
+	//data created!
 	/*
 	const unsigned int total_size = 1024*1024*200;    //100MB
-	char data[total_size];
-	//char *data=malloc(1024*1024*100);
+	//char data[total_size];
+	char *data=malloc(1024*1024*200);
 	for(int i = 0; i<total_size; i++){
-		data[i] = i%255;
+		data[i] = '1';
 	}
-	data_separation(data,total_size);
+	
+	//data_separation(data,total_size);
+	
+	dump_data_save(0,data,total_size,0);
 	*/
 }
