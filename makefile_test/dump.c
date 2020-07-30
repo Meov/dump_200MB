@@ -45,6 +45,7 @@ typedef enum ERRCODE{
 	NOT_HEX = -3,
 	NOT_NUMBER,
 	DATA_TOOBIG,
+	DATA_TOOSMALL,
 	FEW_PARAMETERS,
 	FEW_MEMORY,
 	PATH_NOTFOUND,
@@ -52,7 +53,6 @@ typedef enum ERRCODE{
 	OK,
 } err_code;
 static unsigned long long get_diskSize(char *strDir, EMDiskSizeType  disk_type){
-
 	struct statfs diskinfo;
 	unsigned long long llcount = 0;
 
@@ -76,7 +76,6 @@ static unsigned long long get_diskSize(char *strDir, EMDiskSizeType  disk_type){
 		}		
 		return llcount;
 	}
-
 }
 
 static int  data_dumped(struct file_property fp, int data_num,long len,int is_single_finish){
@@ -121,12 +120,21 @@ static int data_separated_dump(struct file_property fp){
 	unsigned int split_4kb_num;
 	long page_size = sysconf(_SC_PAGESIZE);
 	int is_single_finish = 0;
-	printf("excutived:\n");
+	printf("Executed:\n");
 	printf("==============>file save   path: %s\n",fp.file_save_path);
 	printf("==============>file save length: %d\n",fp.data_length);
 	printf("==============>file split  size: %d\n",fp.split_size);
 	printf("==============>file split  name: %s\n",fp.name);
 	printf("==============>file base   addr: 0x%llx\n",fp.base_addr);
+
+	if(fp.data_length < fp.split_size*page_size){
+		printf("ERR:length:%d less than split * 4096byte = %ld\n",fp.data_length,fp.split_size*page_size);
+		return DATA_TOOSMALL;
+	}
+	if((fp.data_length % page_size) != 0){
+		printf("ERR:length must be an integral muiltiple of 4096\n");
+		return DATA_TOOSMALL;
+	}
 
 	for(split_num = 0; split_num < fp.split_size; split_num++){
 		//write one split ..
@@ -138,15 +146,15 @@ static int data_separated_dump(struct file_property fp){
 			data_dumped(fp,split_num,page_size,is_single_finish);
 		}
 	}
+	return OK;
 }
-
 static int ap_query_cp_memory(struct file_property fp){
 	int fd = -1;
 	void *map_addr = NULL;
 	if((fp.data_length) >= MAX_DATA_SIZE){
 		return DATA_TOOBIG;
 	}
-	fd = open("/home/chao-zhang/file_system/makefile_test/0.txt",O_RDWR);
+	fd = open("/home/chao-zhang/0.txt",O_RDWR);
 	if(fd < 0){
 		printf("no file/n");
 	}
@@ -190,7 +198,6 @@ static int parameter_cheak(struct file_property *fp){
 	//printf(" %s: Lack of space, free: %llu byte\n",fp->file_save_path,disk_space_sount);
 	return OK;
 }
-
 static int parse_path_option(char* file_path,struct file_property *fp){
 	
 	strcpy(fp->file_save_path,file_path);
@@ -242,13 +249,12 @@ static int pares_name_option(char *name_option,struct file_property *fp){
 int main(int argc,char *argv[]){
 	struct file_property fp_set;
 	fp_set = fileproperty;
-
 	int ret = 0;
 	int cmd = 0;
 	if(argc<2){	
 		printf("Usage:\n");
 		printf("-a:base addrress (HEX) -l: data lenth\n");
-		printf("[-d:location] [-s:split number] [-n: name] \n");
+		printf("[-d:location] [-s:split number] [-n:name] \n");
 		return FEW_PARAMETERS;
 	}	
 	//printf("pid : %d\n",getpid());
@@ -328,7 +334,7 @@ int main(int argc,char *argv[]){
 	if(parameter_cheak(&fp_set)!=OK) return -1;
 	fileproperty = fp_set;
 
-	printf("entered:\n");
+	printf("Entered:\n");
 	printf("==============>file save   path: %s\n",fileproperty.file_save_path);
 	printf("==============>file save length: %d\n",fileproperty.data_length);
 	printf("==============>file split  size: %d\n",fileproperty.split_size);
