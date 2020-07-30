@@ -1,3 +1,5 @@
+/* branch dump */
+
 #include <stdio.h>
 #include <string.h>
 #include <sys/vfs.h>
@@ -5,7 +7,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/types.h>
- #include <dirent.h>
+#include <dirent.h>
 
 #define FILEPATHMAX 80
 #define NAMEMAX 20
@@ -135,7 +137,7 @@ static int  data_dumped(unsigned char *data_started, unsigned int data_len, char
 	return 0;
 }
 
-static data_separated_dump(struct file_property fp){
+static int  data_separated_dump(struct file_property fp){
 	unsigned char* data_started = NULL;
 	unsigned int data_offset = 0;
 	unsigned int file_num;
