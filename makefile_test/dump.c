@@ -5,12 +5,17 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/types.h>
- #include <dirent.h>
+#include <dirent.h>
 
 #define FILEPATHMAX 80
 #define NAMEMAX 20
 #define SAVE_DATA_ITER 20   //保存文件次数
 #define SPLITE_SIZE 20
+#define MAX_DATA_SIZE 1024*1024*200
+
+
+
+
 extern char *optarg;
 extern int optind,opterr,optopt;
 struct file_property{
@@ -36,6 +41,14 @@ typedef enum EMDiskSizeType_{
 	TOTAL_SIZE,
 	FREE_SIZE
 } EMDiskSizeType;
+typedef enum ERRCODE{	
+	NOT_NUMBER = -2,
+	DATA_TOOBIG,
+	FEW_PARAMETERS,
+	FEW_MEMORY,
+	PATH_NOTFOUND,
+	OK,
+} err_code;
 static unsigned long long get_diskSize(char *strDir, EMDiskSizeType  disk_type){
 
 	struct statfs diskinfo;
@@ -135,79 +148,101 @@ static int  data_dumped(unsigned char *data_started, unsigned int data_len, char
 	return 0;
 }
 
-static data_separated_dump(struct file_property fp){
+static int data_separated_dump(struct file_property fp){
 	unsigned char* data_started = NULL;
 	unsigned int data_offset = 0;
 	unsigned int file_num;
 
-	for()
+	//for()
 	
 
 
 
 }
 
-//path and disksize check
-static int parameter_cheak(struct file_property fp){
-	char file_save_path[FILEPATHMAX];
-	DIR *d = NULL;
-	unsigned long long per_data_size;   //per data size
-	if(!strcmp(fp.file_save_path,"cl")){
-		//save in current path
-		getcwd(file_save_path,FILEPATHMAX);
-	}else{
-		strcpy(file_save_path,fp.file_save_path);
-		d = opendir(file_save_path);
-		if(d == NULL){
-			printf("path not right!\n");
-			closedir(d);
-			return -1;
-		}
+int ap_query_cp_memory(unsigned int offset,unsigned int length){
+	int fd = -1;
+	void *map_addr = NULL;
+	if((offset + length) >= MAX_DATA_SIZE){
+		return OK;
 	}
-	unsigned long long disk_space_sount =  get_diskSize(file_save_path,FREE_SIZE);
-	per_data_size = fp.data_length/fp.split_size; 
-	if((disk_space_sount<=10)||(disk_space_sount < per_data_size)){
-		printf(" %s: Lack of space, free: %llu\n",file_save_path,disk_space_sount);
-		return -1;
-	}
-	printf(" %s: Lack of space, free: %lluM\n",file_save_path,disk_space_sount);
-	return 0;
+
+
+
+
 }
 
-char* parse_path_option(char* file_path){
-	return file_path;
+
+
+//path and disksize check
+static int parameter_cheak(struct file_property *fp){
+	char cuurent_path[FILEPATHMAX];
+	DIR *d = NULL;
+	unsigned long long per_data_size;   //per data size
+	
+	getcwd(cuurent_path,FILEPATHMAX);
+	
+	if(strcmp(fp->file_save_path,"cl")){
+		d = opendir(fp->file_save_path);
+		if(d == NULL){
+			printf("path not right, default path (current) is used!\n");
+			strcpy(fp->file_save_path,cuurent_path);
+			closedir(d);
+			//return PATH_NOTFOUND;
+		}
+	}else{
+		strcpy(fp->file_save_path,cuurent_path);
+	}
+	
+	unsigned long long disk_space_sount =  get_diskSize(fp->file_save_path,FREE_SIZE);
+	per_data_size = fp->data_length/fp->split_size; 
+	if((disk_space_sount<=10)||(disk_space_sount < per_data_size)){
+		printf(" %s: Lack of space, free: %llu\n",fp->file_save_path,disk_space_sount);
+		return FEW_MEMORY;
+	}
+	printf(" %s: Lack of space, free: %lluM\n",fp->file_save_path,disk_space_sount);
+	return OK;
+}
+
+static int parse_path_option(char* file_path,struct file_property *fp){
+	
+	strcpy(fp->file_save_path,file_path);
+	return OK;
 }
 //hex only default
-static unsigned long parse_data_addr_option(char *data_addr){	
+static int parse_data_addr_option(char *data_addr, struct file_property *fp){
 	unsigned long long data_base_addr = 0;
-	sscanf(data_addr,"%llx",&data_base_addr); 
-	return data_base_addr;
+	sscanf(data_addr,"%llx",&data_base_addr); 	
+	fp->base_addr = data_base_addr;
+	return OK;
 }
-static unsigned int parse_data_length(char *data_len){
+static int parse_data_length(char *data_len,struct file_property *fp){
 	unsigned int data_lenth = 0;
 	if(!isdigitstr(data_len)){
 		printf("ERR: -l : NUMBERS ONLY\n");
-		return 0;
+		return NOT_NUMBER;
 	}
 	data_lenth = atoi(data_len);
-
 	if(data_lenth>1024*1024*400){
 		printf("ERR: length should smaller than 400MB\n");
-		return 0;
+		return DATA_TOOBIG;
 	}
-	return data_lenth;
+	fp->data_length = data_lenth;
+	return OK;
 }
-static int parse_slpit_option(char *split_size){
+static int parse_slpit_option(char *split_size, struct file_property *fp){
 	int int_split_size = -1;
 	if(!isdigitstr(split_size)){
 		printf("ERR: -s : NUMBERS ONLY\n");
-		return -1;
+		return NOT_NUMBER;
 	}
 	int_split_size = atoi(split_size);
-	return int_split_size;
+	fp->split_size = int_split_size;
+	return OK;
 }
-char* pares_name_option(char *name_option){
-	return name_option;
+static int pares_name_option(char *name_option,struct file_property *fp){
+	strcpy(fp->name,name_option);
+	return OK;
 }
 
 int main(int argc,char *argv[]){
@@ -230,14 +265,16 @@ int main(int argc,char *argv[]){
 	//printf("-----------------------%llx\n",a);
 	//free(addr);
 */
+	struct file_property fp_set;
+	fp_set = fileproperty;
 
-	long long ret = 0;
+	int ret = 0;
 	int cmd = 0;
 	if(argc<2){	
 		printf("Usage:\n");
 		printf("-a:base addrress (HEX) -l: data lenth\n");
 		printf("[-d:location] [-s:split number] [-n: name] \n");
-		return 1;
+		return FEW_PARAMETERS;
 	}	
 	//printf("pid : %d\n",getpid());
 	while((cmd = getopt(argc, argv,"a:l:d:s:n:"))!=-1){  //getopt will retrn -1 when all the parameters are listed
@@ -245,7 +282,7 @@ int main(int argc,char *argv[]){
 		{
 		case 'a':
 			if(optarg){
-				fileproperty.base_addr = parse_data_addr_option(optarg);
+				fileproperty.base_addr = parse_data_addr_option(optarg,&fp_set);
 			}else{
 				printf("empty option -%c...\n",cmd);
 				exit(0);
@@ -253,8 +290,8 @@ int main(int argc,char *argv[]){
 			break;
 		case 'l':
 			if(optarg){
-				ret = parse_data_length(optarg);
-				if(ret<=0){
+				ret = parse_data_length(optarg,&fp_set);
+				if(ret != OK){
 					exit(6);
 				}	
 				fileproperty.data_length = ret;
@@ -267,7 +304,10 @@ int main(int argc,char *argv[]){
 			//optional command
 		case 'd': //save path set
 			if(optarg){
-				strcpy(fileproperty.file_save_path,parse_path_option(optarg));
+				ret = parse_path_option(optarg,&fp_set);
+				if(ret != OK){
+					exit(6);
+				}
 			} 
 			else{
 				printf("empty option -%c...\n",cmd);
@@ -276,8 +316,8 @@ int main(int argc,char *argv[]){
 			break;
 		case 's':  //split size
 			if(optarg){
-				ret = parse_slpit_option(optarg);
-				if(ret<0){
+				ret = parse_slpit_option(optarg,&fp_set);
+				if(ret!=OK){
 					exit(6);
 				}	
 				fileproperty.split_size = ret;
@@ -288,7 +328,11 @@ int main(int argc,char *argv[]){
 			break;
 		case 'n':  //name set
 			if(optarg){
-				strcpy(fileproperty.name,pares_name_option(optarg));
+				ret = pares_name_option(optarg,&fp_set);
+				if (ret!= OK)
+				{
+					exit(6);
+				}
 			}else{
 				printf("empty option -%c...\n",cmd);
 				exit(7);
@@ -298,24 +342,30 @@ int main(int argc,char *argv[]){
 			break;
 		}
 	}
-
+	
 	//check the addr and lent infomation
-	if((fileproperty.base_addr < 0 )||(fileproperty.data_length<=0)){
+	if((fp_set.base_addr < 0 )||(fp_set.data_length<=0)){
 		printf("ERR: option data_addr(-a) and data_lenth(-l) are required!\n");
 		return -1;
 	}
-
+	
+	
+	//option parameter check
+	if(parameter_cheak(&fp_set)!=OK) return -1;
+	
+	long page_size = sysconf(_SC_PAGESIZE);
+	printf("page size of this pc : %lu\n",page_size);
+	fileproperty = fp_set;
+	
 	printf("==============>file save   path: %s\n",fileproperty.file_save_path);
 	printf("==============>file save length: %d\n",fileproperty.data_length);
 	printf("==============>file split  size: %d\n",fileproperty.split_size);
 	printf("==============>file split  name: %s\n",fileproperty.name);
 	printf("==============>file base   addr: 0x%llx\n",fileproperty.base_addr);
 
-	//option parameter check
-	if(parameter_cheak(fileproperty)!=0) return -1;
-	
-	
 	printf(":)\n");
+	
+	
 	/*
 	const unsigned int total_size = 1024*1024*200;    //100MB
 	char data[total_size];
