@@ -10,13 +10,15 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <time.h>
+#include <dirent.h>
+
 #define FILEPATHMAX 80
 #define MAX_NAME 80
 #define SPLITE_SIZE 1  //defualt
 #define MAX_DATA_SIZE 1024*1024*400
 extern char *optarg;
 extern int optind,opterr,optopt;
-
+unsigned int record_num;
 struct file_property{
 	unsigned long long base_addr;    		//base address of data
 	unsigned int data_length;   			//lenth of data to be saved
@@ -85,8 +87,10 @@ static int  data_dumped(struct file_property fp, int data_num,long len,int is_si
 	FILE *file = NULL;
 	unsigned char *pu8 = NULL;
 	char cmd_cmmand[200];
-	sprintf(full_file_path,"%s/%s-%d.txt",fp.file_save_path,fp.name,data_num);
-	sprintf(full_file_name,"%s/%s-%d",fp.file_save_path,fp.name,data_num);
+	//e.g. test-1-0  format====>name-recordnumer-splitnumber
+	sprintf(full_file_name,"%s-%d-%d",fp.name,record_num,data_num);
+	sprintf(full_file_path,"%s/%s.txt",fp.file_save_path,full_file_name);
+	
 	file = fopen(full_file_path,"a+");  //create the numbered file
 	if(file == NULL){
 		printf("file:%s opened err\n",full_file_path);
@@ -98,14 +102,13 @@ static int  data_dumped(struct file_property fp, int data_num,long len,int is_si
 	fwrite(pu8,sizeof(char),len,file);  //4096 bytes write
 	if(is_single_finish){
 		printf("split %d write finished!\n",data_num);
-		sprintf(cmd_cmmand,"%s %s/%s-%d.tar.gz -C %s/ %s-%d.txt","tar -czPf",fp.file_save_path,fp.name,data_num,
-		fp.file_save_path,fp.name,data_num);  //tar -czvf ***.tar ***.bin
+		sprintf(cmd_cmmand,"%s %s/%s.tar.gz -C %s/ %s.txt","tar -czPf",fp.file_save_path,full_file_name,
+		fp.file_save_path,full_file_name);  //tar -czvf ***.tar ***.bin
 		//printf("cmd_cmmand: %s\n",cmd_cmmand);
 		system(cmd_cmmand);													   
-		sprintf(cmd_cmmand,"%s %s/%s-%d.txt","rm ",fp.file_save_path,fp.name,data_num);   //rm ***.txt
-		printf("cmd_cmmand: %s\n",cmd_cmmand);
+		sprintf(cmd_cmmand,"%s %s/%s.txt","rm ",fp.file_save_path,full_file_name);   //rm ***.txt
+		//printf("cmd_cmmand: %s\n",cmd_cmmand);
 		system(cmd_cmmand);	
-		
 		is_single_finish = 0;
 	}
 	fclose(file);
@@ -255,8 +258,54 @@ static int pares_name_option(char *name_option,struct file_property *fp){
 	strcpy(fp->name,name_option);
 	return OK;
 }
-int main(int argc,char *argv[]){
+
+static int file_existed_check(struct file_property fp){
+	
 	/*
+	char time_[32];
+	time_t time_seconds = time(0);
+	struct tm* now_time = localtime(&time_seconds);
+	strcpy(time_ ,ctime(&time_seconds));
+	printf("time:%s\n",time_);
+	*/
+	//record_num
+
+	DIR *dir = NULL;
+    struct dirent *ptr;
+	dir = opendir(fp.file_save_path);
+	unsigned int writed_number = 0;
+	if(dir == NULL){
+		return FILE_ERR;
+	}
+	char record_number_addr[1];
+	char *ret = NULL;
+	
+	while((ptr = readdir(dir)) != NULL){
+		ret = strstr(ptr->d_name,".tar.gz"); //find the file end with .tar.gz
+		if(ret != NULL){
+			if(strlen(fp.name) == ((ret-5-ptr->d_name)/sizeof(char)+1)){ //same length
+				if(!strncmp(fp.name,ptr->d_name,strlen(fp.name))){		 //same string==>same named file 
+					printf("-----------------same file! fp.name: %s,ptr->d_name:%s\n",fp.name,ptr->d_name);
+					strncpy(record_number_addr,ret-3*sizeof(char),1);				
+					sscanf(record_number_addr,"%d",&record_num);
+					if(record_num > writed_number){
+						writed_number = record_num;
+						printf("+++++++++++number_bigger: %d\n",writed_number);
+					}
+				}
+			}
+		}
+	}
+
+    closedir(dir);
+	record_num = writed_number + 1;
+	record_num %= 5;
+	printf("======================================>number_bigger: %d\n",record_num);
+    return 0;
+}
+
+int main(int argc,char *argv[]){
+	
 	struct file_property fp_set;
 	fp_set = fileproperty;
 	int ret = 0;
@@ -336,12 +385,15 @@ int main(int argc,char *argv[]){
 	}
 	
 	//check the addr and lent infomation
-	if((fp_set.base_addr < 0 )||(fp_set.data_length<=0)){
+	if((fp_set.base_addr < 0 )||(fp_set.data_length < 0)){
 		printf("ERR: option data_addr(-a) and data_lenth(-l) are required!\n");
 		return -1;
 	}
 	//option parameter check path and disk size check
 	if(parameter_cheak(&fp_set)!=OK) return -1;
+	file_existed_check(fp_set);  //check wether has 5th data savedS
+
+
 	fileproperty = fp_set;
 
 	printf("Entered:\n");
@@ -369,12 +421,6 @@ int main(int argc,char *argv[]){
 	strcpy(fp.file_save_path,cuurent_path);
 	fp.base_addr = (unsigned long long)data;
 	data_dumped(fp,0,total_size,0);
+	
 	*/
-
-	char time_[32];
-	time_t time_seconds = time(0);
-	struct tm* now_time = localtime(&time_seconds);
-	//gettimeofday(&timer_val,NULL);
-	strcpy(time_ ,ctime(&time_seconds));
-	printf("time:%s\n",time_);
 }
