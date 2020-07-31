@@ -274,7 +274,7 @@ static int file_existed_check(struct file_property fp){
 	char *line_ret_ = NULL;
 	char num_line_str[20];
 	char record_num_str[20];
-
+	char cmd_cmmand[200];
 	/*
 	e.g.   data-10-1.tar.gz
 		(1)	dot_ret = string begin at first "."  line_ret =  string begin at first "-" 
@@ -298,12 +298,20 @@ static int file_existed_check(struct file_property fp){
 						writed_number = record_num;
 					}
 				}
+
+				if(writed_number == 3){
+					sprintf(cmd_cmmand,"%s %s/%s-*.tar.gz","rm ",fp.file_save_path,fp.name);   //rm ***.txt
+					system(cmd_cmmand);
+					record_num = 0;
+				}else{
+					record_num = writed_number + 1;
+				}
 			}
 		}
 	}
     closedir(dir);
-	record_num = writed_number + 1;
-	//record_num %= 5;
+	
+//	record_num = record_num%3;
 	printf("======================================>record_num: %d\n",record_num);
     return 0;
 }
