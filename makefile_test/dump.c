@@ -14,7 +14,6 @@
 
 #define FILEPATHMAX 80
 #define MAX_NAME 80
-#define SPLITE_SIZE 1  //defualt
 #define MAX_DATA_SIZE 1024*1024*400
 extern char *optarg;
 extern int optind,opterr,optopt;
@@ -29,7 +28,7 @@ struct file_property{
 struct file_property fileproperty = {
 	.base_addr = 0,
 	.data_length = 0,
-	.split_size = SPLITE_SIZE,
+	.split_size = 1,
 	.name = "data",
 	.file_save_path = "cl", //current location
 };
@@ -199,11 +198,14 @@ static int parameter_cheak(struct file_property *fp){
 		printf(" ------------------>addr  must be an intergral muiltiple of 4096byte\n");
 		return FILE_ERR;
 	}
-
 	//length check!
 	if(fp->data_length>MAX_DATA_SIZE){
 		printf("ERR: length should smaller than 400MB\n");
 		return DATA_TOOBIG;
+	}
+	if(fp->data_length == 0){
+		printf("data length :%d must be entered!\n",fp->data_length);
+		return FILE_ERR;
 	}
 	if(fp->data_length < fp->split_size * page_size){
 		printf("data length :%d should larger than split_size*page_size = %ld\n",fp->data_length,fp->split_size * page_size);
@@ -258,18 +260,7 @@ static int pares_name_option(char *name_option,struct file_property *fp){
 	strcpy(fp->name,name_option);
 	return OK;
 }
-
 static int file_existed_check(struct file_property fp){
-	
-	/*
-	char time_[32];
-	time_t time_seconds = time(0);
-	struct tm* now_time = localtime(&time_seconds);
-	strcpy(time_ ,ctime(&time_seconds));
-	printf("time:%s\n",time_);
-	*/
-	//record_num
-
 	DIR *dir = NULL;
     struct dirent *ptr;
 	dir = opendir(fp.file_save_path);
@@ -277,30 +268,43 @@ static int file_existed_check(struct file_property fp){
 	if(dir == NULL){
 		return FILE_ERR;
 	}
-	char record_number_addr[1];
-	char *ret = NULL;
-	
+	char record_number_addr[20];
+	char *dot_ret = NULL;
+	char *line_ret = NULL;
+	char *line_ret_ = NULL;
+	char num_line_str[20];
+	char record_num_str[20];
+
+	/*
+	e.g.   data-10-1.tar.gz
+		(1)	dot_ret = string begin at first "."  line_ret =  string begin at first "-" 
+		(2)	num_line_str = string "10-1"
+		(3) line_ret_ = string begin at "-" of num_line_str
+		(4) record_number_addr = string "10"
+		complex!!!
+	*/
 	while((ptr = readdir(dir)) != NULL){
-		ret = strstr(ptr->d_name,".tar.gz"); //find the file end with .tar.gz
-		if(ret != NULL){
-			if(strlen(fp.name) == ((ret-5-ptr->d_name)/sizeof(char)+1)){ //same length
+		dot_ret = strstr(ptr->d_name,".tar.gz"); //find the file end with .tar.gz
+		if(dot_ret != NULL){
+			line_ret = strstr(ptr->d_name,"-");
+			if(strlen(fp.name) == ((line_ret-ptr->d_name)/sizeof(char))){ //same length
 				if(!strncmp(fp.name,ptr->d_name,strlen(fp.name))){		 //same string==>same named file 
-					printf("-----------------same file! fp.name: %s,ptr->d_name:%s\n",fp.name,ptr->d_name);
-					strncpy(record_number_addr,ret-3*sizeof(char),1);				
+					strncpy(num_line_str,line_ret+1,(dot_ret-line_ret)/sizeof(char));
+					line_ret_ = strstr(num_line_str,"-");		
+					strncpy(record_number_addr,num_line_str,(line_ret_-num_line_str)/sizeof(char));				
 					sscanf(record_number_addr,"%d",&record_num);
+					memset(record_number_addr,0,20);  //clear record_num_str[]	
 					if(record_num > writed_number){
 						writed_number = record_num;
-						printf("+++++++++++number_bigger: %d\n",writed_number);
 					}
 				}
 			}
 		}
 	}
-
     closedir(dir);
 	record_num = writed_number + 1;
-	record_num %= 5;
-	printf("======================================>number_bigger: %d\n",record_num);
+	//record_num %= 5;
+	printf("======================================>record_num: %d\n",record_num);
     return 0;
 }
 
@@ -312,8 +316,11 @@ int main(int argc,char *argv[]){
 	int cmd = 0;
 	if(argc<2){	
 		printf("Usage:\n");
-		printf("      -a:base addrress <hex format>      -l:data lenth <dec format> (n*4096)\n");
-		printf("      [-d:location]      [-s:split number(dec format)]      [-n:name] \n");
+		printf("	-l:data lenth     <dec format>  (n*4096)\n");
+		printf("	[-a:base addrress <hex format>] default:0\n");
+		printf("	[-d:location]                   default:current path\n");
+		printf("	[-s:split number  <dec format>  default:1]\n");
+		printf("	[-n:name                        default:data-dumpednumber-splitnumber]\n");
 		return FEW_PARAMETERS;
 	}	
 	//printf("pid : %d\n",getpid());
@@ -385,17 +392,16 @@ int main(int argc,char *argv[]){
 	}
 	
 	//check the addr and lent infomation
-	if((fp_set.base_addr < 0 )||(fp_set.data_length < 0)){
+	if((fp_set.base_addr < 0 )||(fp_set.data_length == 0)){
 		printf("ERR: option data_addr(-a) and data_lenth(-l) are required!\n");
 		return -1;
 	}
-	//option parameter check path and disk size check
+	//option parameter check path and disk size check	
 	if(parameter_cheak(&fp_set)!=OK) return -1;
-	file_existed_check(fp_set);  //check wether has 5th data savedS
-
+	//check wether has 5th data savedS
+	file_existed_check(fp_set);  
 
 	fileproperty = fp_set;
-
 	printf("Entered:\n");
 	printf("==============>file save   path: %s\n",fileproperty.file_save_path);
 	printf("==============>file save length: %d\n",fileproperty.data_length);
