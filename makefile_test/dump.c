@@ -131,17 +131,6 @@ static int data_separated_dump(struct file_property fp){
 	printf("==============>file split  name: %s\n",fp.name);
 	printf("==============>file base   addr: 0x%llx\n",fp.base_addr);
 
-<<<<<<< HEAD
-	if(fp.data_length < fp.split_size*page_size){
-		printf("ERR:length:%d less than split * 4096byte = %ld\n",fp.data_length,fp.split_size*page_size);
-		return DATA_TOOSMALL;
-	}
-	if((fp.data_length % page_size) != 0){
-		printf("ERR:length must be an integral muiltiple of 4096\n");
-		return DATA_TOOSMALL;
-	}
-=======
->>>>>>> cf095b323f517fa81e64301068a236585b86963b
 
 	for(split_num = 0; split_num < fp.split_size; split_num++){
 		//write one split ..
@@ -163,11 +152,7 @@ static int ap_query_cp_memory(struct file_property fp){
 	if((fp.data_length) >= MAX_DATA_SIZE){
 		return DATA_TOOBIG;
 	}
-<<<<<<< HEAD
-	fd = open("/home/chao-zhang/0.txt",O_RDWR);
-=======
-	fd = open("/home/airobot/dump_200MB/dump_200MB/makefile_test/0.txt",O_RDWR);
->>>>>>> cf095b323f517fa81e64301068a236585b86963b
+	fd = open("/home/chao-zhang/file_system/0.txt",O_RDWR);
 	if(fd < 0){
 		printf("no file/n");
 	}
@@ -211,15 +196,15 @@ static int parameter_cheak(struct file_property *fp){
 		return FEW_MEMORY;
 	}
 
-	if(fp->base_addr % 4096 != 0){
+	if(fp->base_addr % page_size != 0){
 		printf(" ------------------>addr  must be an intergral muiltiple of 4096byte\n");
 		return FILE_ERR;
 	}
 
 	if(fp->data_length < fp->split_size * page_size){
-		printf("data length :%ld is less than split_size*page_size = %ld\n",fp->split_size * page_size);
+		printf("data length :%d is less than split_size*page_size = %ld\n",fp->data_length,fp->split_size * page_size);
 		return FILE_ERR;
-	}
+	} 
 	if(fp->data_length % page_size != 0){
 		printf("datalength must be an intergral muiltiple of 4096byte\n");
 		return FILE_ERR;
