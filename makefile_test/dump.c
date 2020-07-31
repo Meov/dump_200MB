@@ -9,12 +9,14 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <time.h>
 #define FILEPATHMAX 80
 #define MAX_NAME 80
 #define SPLITE_SIZE 1  //defualt
 #define MAX_DATA_SIZE 1024*1024*400
 extern char *optarg;
 extern int optind,opterr,optopt;
+
 struct file_property{
 	unsigned long long base_addr;    		//base address of data
 	unsigned int data_length;   			//lenth of data to be saved
@@ -254,7 +256,7 @@ static int pares_name_option(char *name_option,struct file_property *fp){
 	return OK;
 }
 int main(int argc,char *argv[]){
-
+	/*
 	struct file_property fp_set;
 	fp_set = fileproperty;
 	int ret = 0;
@@ -368,5 +370,11 @@ int main(int argc,char *argv[]){
 	fp.base_addr = (unsigned long long)data;
 	data_dumped(fp,0,total_size,0);
 	*/
-	
+
+	char time_[32];
+	time_t time_seconds = time(0);
+	struct tm* now_time = localtime(&time_seconds);
+	//gettimeofday(&timer_val,NULL);
+	strcpy(time_ ,ctime(&time_seconds));
+	printf("time:%s\n",time_);
 }
