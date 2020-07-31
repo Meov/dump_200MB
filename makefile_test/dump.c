@@ -10,8 +10,8 @@
 #include <errno.h>
 #define FILEPATHMAX 80
 #define MAX_NAME 80
-#define SPLITE_SIZE 20  //defualt
-#define MAX_DATA_SIZE 1024*1024*200
+#define SPLITE_SIZE 1  //defualt
+#define MAX_DATA_SIZE 1024*1024*400
 extern char *optarg;
 extern int optind,opterr,optopt;
 struct file_property{
@@ -19,7 +19,7 @@ struct file_property{
 	unsigned int data_length;   			//lenth of data to be saved
 	int split_size;			   				//split size
 	char file_save_path[FILEPATHMAX];  		//file save path
-	char name[MAX_NAME];                	//name
+	char name[MAX_NAME];             	  	//name
 };
 struct file_property fileproperty = {
 	.base_addr = 0,
@@ -86,11 +86,7 @@ static int  data_dumped(struct file_property fp, int data_num,long len,int is_si
 	char cmd_cmmand[200];
 	sprintf(full_file_path,"%s/%s-%d.txt",fp.file_save_path,fp.name,data_num);
 	sprintf(full_file_name,"%s/%s-%d",fp.file_save_path,fp.name,data_num);
-	
 	file = fopen(full_file_path,"a+");  //create the numbered file
-	
-
-
 	if(file == NULL){
 		printf("file:%s opened err\n",full_file_path);
 		return FILE_ERR;
@@ -98,9 +94,7 @@ static int  data_dumped(struct file_property fp, int data_num,long len,int is_si
 	fseek(file, 0, SEEK_END);//定位到文件末尾
 	pu8 = (unsigned char*)fp.base_addr;
 	//printf("file:%s created OK\n",full_file_path);
-
 	fwrite(pu8,sizeof(char),len,file);  //4096 bytes write
-
 	if(is_single_finish){
 		printf("split %d write finished!\n",data_num);
 		sprintf(cmd_cmmand,"%s %s/%s-%d.tar.gz -C %s/ %s-%d.txt","tar -czPf",fp.file_save_path,fp.name,data_num,
@@ -131,7 +125,6 @@ static int data_separated_dump(struct file_property fp){
 	printf("==============>file split  name: %s\n",fp.name);
 	printf("==============>file base   addr: 0x%llx\n",fp.base_addr);
 
-
 	for(split_num = 0; split_num < fp.split_size; split_num++){
 		//write one split ..
 		is_single_finish = 0;
@@ -139,19 +132,16 @@ static int data_separated_dump(struct file_property fp){
 		for(split_4kb_num = 1; split_4kb_num <= fp.data_length/fp.split_size/page_size;split_4kb_num++){
 			if(split_4kb_num == fp.data_length/fp.split_size/page_size)  //is one split finished?
 				is_single_finish = 1;  //last 4Kb flag
-			printf("fp.base_addr: %llx\n",fp.base_addr);
 			data_dumped(fp,split_num,page_size,is_single_finish);
 			fp.base_addr += page_size;    //addr offset 4096Kb
 		}
+		printf("fp.base_addr: %llx\n",fp.base_addr);
 	}
 	return OK;
 }
 static int ap_query_cp_memory(struct file_property fp){
 	int fd = -1;
 	void *map_addr = NULL;
-	if((fp.data_length) >= MAX_DATA_SIZE){
-		return DATA_TOOBIG;
-	}
 	fd = open("/home/chao-zhang/0.txt",O_RDWR);
 	if(fd < 0){
 		printf("no file/n");
@@ -159,6 +149,7 @@ static int ap_query_cp_memory(struct file_property fp){
 	map_addr = mmap(NULL,201*1024*1024,PROT_READ,MAP_SHARED,fd,0);
 	if(map_addr == MAP_FAILED){
 		close(fd);
+		printf("ERR: map_addr :%s\n",(char *)map_addr);
 		return -ENOMEM;
 	}
 	printf("\n\n");
@@ -170,7 +161,7 @@ static int ap_query_cp_memory(struct file_property fp){
 	munmap(map_addr,200*1024*1024);
 	close(fd);
 }
-//path and disksize check
+//parameers check
 static int parameter_cheak(struct file_property *fp){
 	char cuurent_path[FILEPATHMAX];
 	DIR *d = NULL;
@@ -191,26 +182,33 @@ static int parameter_cheak(struct file_property *fp){
 	}
 	unsigned long long disk_space_sount =  get_diskSize(fp->file_save_path,FREE_SIZE);
 	per_data_size = fp->data_length/fp->split_size; 
+	
+	//disk size check!
+	
 	if((disk_space_sount<=10)||(disk_space_sount < (per_data_size))){
 		printf(" err : %s: Lack of space, free: %llu byte\n",fp->file_save_path,disk_space_sount);
 		return FEW_MEMORY;
 	}
-
+	//printf(" %s: Lack of space, free: %llu byte\n",fp->file_save_path,disk_space_sount);
+	//base addr check!
 	if(fp->base_addr % page_size != 0){
 		printf(" ------------------>addr  must be an intergral muiltiple of 4096byte\n");
 		return FILE_ERR;
 	}
 
+	//length check!
+	if(fp->data_length>MAX_DATA_SIZE){
+		printf("ERR: length should smaller than 400MB\n");
+		return DATA_TOOBIG;
+	}
 	if(fp->data_length < fp->split_size * page_size){
-		printf("data length :%d is less than split_size*page_size = %ld\n",fp->data_length,fp->split_size * page_size);
+		printf("data length :%d should larger than split_size*page_size = %ld\n",fp->data_length,fp->split_size * page_size);
 		return FILE_ERR;
 	} 
 	if(fp->data_length % page_size != 0){
 		printf("datalength must be an intergral muiltiple of 4096byte\n");
 		return FILE_ERR;
 	}
-
-	//printf(" %s: Lack of space, free: %llu byte\n",fp->file_save_path,disk_space_sount);
 	return OK;
 }
 static int parse_path_option(char* file_path,struct file_property *fp){
@@ -238,14 +236,7 @@ static int parse_data_length(char *data_len,struct file_property *fp){
 		printf("ERR: -l : NUMBERS ONLY\n");
 		return NOT_NUMBER;
 	}
-	
 	data_lenth = atoi(data_len);
-	if(data_lenth>1024*1024*400){
-		printf("ERR: length should smaller than 400MB\n");
-		return DATA_TOOBIG;
-	}
-
-	
 	fp->data_length = data_lenth;
 	return OK;
 }
@@ -271,8 +262,8 @@ int main(int argc,char *argv[]){
 	int cmd = 0;
 	if(argc<2){	
 		printf("Usage:\n");
-		printf("-a:base addrress (HEX) -l: data lenth\n");
-		printf("[-d:location] [-s:split number] [-n:name] \n");
+		printf("      -a:base addrress <hex format>      -l:data lenth <dec format> (n*4096)\n");
+		printf("      [-d:location]      [-s:split number(dec format)]      [-n:name] \n");
 		return FEW_PARAMETERS;
 	}	
 	//printf("pid : %d\n",getpid());
