@@ -256,7 +256,7 @@ static int pares_name_option(char *name_option,struct file_property *fp){
 	return OK;
 }
 int main(int argc,char *argv[]){
-	/*
+	
 	struct file_property fp_set;
 	fp_set = fileproperty;
 	int ret = 0;
@@ -369,7 +369,7 @@ int main(int argc,char *argv[]){
 	strcpy(fp.file_save_path,cuurent_path);
 	fp.base_addr = (unsigned long long)data;
 	data_dumped(fp,0,total_size,0);
-	*/
+	
 
 	char time_[32];
 	time_t time_seconds = time(0);
@@ -377,4 +377,5 @@ int main(int argc,char *argv[]){
 	//gettimeofday(&timer_val,NULL);
 	strcpy(time_ ,ctime(&time_seconds));
 	printf("time:%s\n",time_);
+	*/
 }
