@@ -152,7 +152,7 @@ static int ap_query_cp_memory(struct file_property fp){
 	if((fp.data_length) >= MAX_DATA_SIZE){
 		return DATA_TOOBIG;
 	}
-	fd = open("/home/chao-zhang/file_system/0.txt",O_RDWR);
+	fd = open("/home/chao-zhang/0.txt",O_RDWR);
 	if(fd < 0){
 		printf("no file/n");
 	}
