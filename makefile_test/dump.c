@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/time.h>
 #define FILEPATHMAX 80
 #define MAX_NAME 80
 #define SPLITE_SIZE 1  //defualt
@@ -36,7 +37,6 @@ static int ishexstr(char *str)
 {
 	return (strspn(str, "0123456789ABCDEFabcdef")==strlen(str)); 
 }
-
 typedef enum EMDiskSizeType_{
 	TOTAL_SIZE,
 	FREE_SIZE
@@ -77,7 +77,6 @@ static unsigned long long get_diskSize(char *strDir, EMDiskSizeType  disk_type){
 		return llcount;
 	}
 }
-
 static int  data_dumped(struct file_property fp, int data_num,long len,int is_single_finish){
 	char full_file_path[FILEPATHMAX];
 	char full_file_name[MAX_NAME];
@@ -102,7 +101,7 @@ static int  data_dumped(struct file_property fp, int data_num,long len,int is_si
 		//printf("cmd_cmmand: %s\n",cmd_cmmand);
 		system(cmd_cmmand);													   
 		sprintf(cmd_cmmand,"%s %s/%s-%d.txt","rm ",fp.file_save_path,fp.name,data_num);   //rm ***.txt
-		//printf("cmd_cmmand: %s\n",cmd_cmmand);
+		printf("cmd_cmmand: %s\n",cmd_cmmand);
 		system(cmd_cmmand);	
 		
 		is_single_finish = 0;

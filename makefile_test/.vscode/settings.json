@@ -7,6 +7,7 @@
         "typeinfo": "c",
         "random": "c",
         "types.h": "c",
-        "errno.h": "c"
+        "errno.h": "c",
+        "time.h": "c"
     }
 }
