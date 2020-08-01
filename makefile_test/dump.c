@@ -1,3 +1,4 @@
+//branch arm
 #include <stdio.h>
 #include <string.h>
 #include <sys/vfs.h>
@@ -15,6 +16,9 @@
 #define FILEPATHMAX 80
 #define MAX_NAME 80
 #define MAX_DATA_SIZE 1024*1024*400
+
+#define VERSION "0.2.1" //keep lasteet five data
+
 extern char *optarg;
 extern int optind,opterr,optopt;
 unsigned int record_num;
@@ -88,7 +92,7 @@ static int  data_dumped(struct file_property fp, int data_num,long len,int is_si
 	char cmd_cmmand[200];
 	//e.g. test-1-0  format====>name-recordnumer-splitnumber
 	sprintf(full_file_name,"%s-%d-%d",fp.name,record_num,data_num);
-	sprintf(full_file_path,"%s/%s.txt",fp.file_save_path,full_file_name);
+	sprintf(full_file_path,"%s/%s.bin",fp.file_save_path,full_file_name);
 	
 	file = fopen(full_file_path,"a+");  //create the numbered file
 	if(file == NULL){
@@ -101,11 +105,11 @@ static int  data_dumped(struct file_property fp, int data_num,long len,int is_si
 	fwrite(pu8,sizeof(char),len,file);  //4096 bytes write
 	if(is_single_finish){
 		printf("split %d write finished!\n",data_num);
-		sprintf(cmd_cmmand,"%s %s/%s.tar.gz -C %s/ %s.txt","tar -czPf",fp.file_save_path,full_file_name,
+		sprintf(cmd_cmmand,"%s %s/%s.tar.gz -C %s/ %s.bin","tar -czPf",fp.file_save_path,full_file_name,
 		fp.file_save_path,full_file_name);  //tar -czvf ***.tar ***.bin
 		//printf("cmd_cmmand: %s\n",cmd_cmmand);
 		system(cmd_cmmand);													   
-		sprintf(cmd_cmmand,"%s %s/%s.txt","rm ",fp.file_save_path,full_file_name);   //rm ***.txt
+		sprintf(cmd_cmmand,"%s %s/%s.bin","rm ",fp.file_save_path,full_file_name);   //rm ***.txt
 		//printf("cmd_cmmand: %s\n",cmd_cmmand);
 		system(cmd_cmmand);	
 		is_single_finish = 0;
@@ -143,13 +147,17 @@ static int data_separated_dump(struct file_property fp){
 	return OK;
 }
 static int ap_query_cp_memory(struct file_property fp){
+	const char *path = "dev/modem";
+	//const char *path = "/home/chao-zhang/0.txt";
 	int fd = -1;
 	void *map_addr = NULL;
-	fd = open("/home/chao-zhang/0.txt",O_RDWR);
+	fd = open(path,O_RDWR);
 	if(fd < 0){
-		printf("no file/n");
+		printf("ERR: can't open file:  %s\n",path);
+		close(fd);
+		return -ENOMEM;
 	}
-	map_addr = mmap(NULL,201*1024*1024,PROT_READ,MAP_SHARED,fd,0);
+	map_addr = mmap(NULL,201*1024*1024,PROT_READ,MAP_SHARED,fd,0);  //201Mb Virtual space
 	if(map_addr == MAP_FAILED){
 		close(fd);
 		printf("ERR: map_addr :%s\n",(char *)map_addr);
@@ -161,8 +169,9 @@ static int ap_query_cp_memory(struct file_property fp){
 	printf("=====================>file vertual base addr + base_addr given = s%llx\n",fp.base_addr);
 	printf("\n\n");
 	data_separated_dump(fp);
-	munmap(map_addr,200*1024*1024);
+	munmap(map_addr,201*1024*1024);
 	close(fd);
+	return OK;
 }
 //parameers check
 static int parameter_cheak(struct file_property *fp){
@@ -299,7 +308,7 @@ static int file_existed_check(struct file_property fp){
 					}
 				}
 
-				if(writed_number == 3){
+				if(writed_number == 4){
 					sprintf(cmd_cmmand,"%s %s/%s-*.tar.gz","rm ",fp.file_save_path,fp.name);   //rm ***.txt
 					system(cmd_cmmand);
 					record_num = 0;
@@ -310,9 +319,7 @@ static int file_existed_check(struct file_property fp){
 		}
 	}
     closedir(dir);
-	
-//	record_num = record_num%3;
-	printf("======================================>record_num: %d\n",record_num);
+	//printf("======================================>record_num: %d\n",record_num);
     return 0;
 }
 
@@ -322,6 +329,9 @@ int main(int argc,char *argv[]){
 	fp_set = fileproperty;
 	int ret = 0;
 	int cmd = 0;
+	
+	printf("VERSION:%s\n",VERSION);
+	
 	if(argc<2){	
 		printf("Usage:\n");
 		printf("	-l:data lenth     <dec format>  (n*4096)\n");
