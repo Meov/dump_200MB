@@ -310,7 +310,7 @@ static int file_existed_check(struct file_property fp){
 					}
 				}
 
-				if(writed_number == 4){
+				if(writed_number >= 4){
 					sprintf(cmd_cmmand,"%s %s/%s-*.tar.bz2","rm ",fp.file_save_path,fp.name);   //rm ***.txt
 					printf("++++++++++++++++++++++++++cmd_cmmand: %s\n",cmd_cmmand);
 					system(cmd_cmmand);
