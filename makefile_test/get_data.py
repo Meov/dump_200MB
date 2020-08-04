@@ -5,14 +5,13 @@ import sys
 import bz2
 import re
 import getopt
-import time
 
 
-
+name_format = ".tar" #"tar.bz2" 
 def files_name_get(file_dir,name):   
     target_file=[]   
     name_str = ""
-    name_format = ".tar" #"tar.bz2" 
+    
     if name:
         name_str = name              
     has_tar_file = False    #没输入名字会遍历目录 找到存在的文件
@@ -37,27 +36,27 @@ def create_file(file_path,msg):
 
 
 def file_extract(sorted_file,file_source_dir,target_name,file_target_dir):
-
     for i in range(len(sorted_file)):
         for files_ in os.listdir(file_source_dir):
-            if sorted_file[i] in files_:
+            if ((sorted_file[i] in files_) and (name_format in files_)):
                 data_to_extrat = os.path.join(file_source_dir,files_)
+                print(data_to_extrat)
                 tar = tarfile.open(data_to_extrat,"r:*",encoding='utf-8')
                 tar.extractall(path=file_target_dir)
                 file_target_path = os.path.join(file_target_dir,tar.getnames()[0])
                 tar.close()
                 file_data_save = os.path.join(file_target_dir,target_name+'.bin')
-                print(file_data_save)
+                
+                
                 with open(file_data_save,'a') as f:
                     f.write(open(file_target_path,'r').read())
-                
-                time.sleep(3)
                 os.remove(file_target_path)
+                
 
 def file_save(files_names,file_source_dir,file_target_dir): #get different files
     for i in range(len(files_names)):
         sorted_file = file_splitnumber_sort(files_names[i],file_source_dir)  #将某一name下按照split_number重新排列
-        print(sorted_file)
+        #print(sorted_file)
         file_extract(sorted_file,file_source_dir,files_names[i],file_target_dir)
     return 0
 def get_file_dir(file_dir_opt):
@@ -83,8 +82,7 @@ def file_splitnumber_sort(file_name,path):    #将同一个文件（name-dumpedn
     print("searching for ...  "+file_name+" in %s"%path)
     file_list = []
     for file in os.listdir(path):
-        if file_name in file:
-            #print(file)
+        if ((file_name in file) and (name_format in file)):
             file_split_num = file.split('.')[0]
             file_list.append(file_split_num)
     file_list.sort(key=sort_key)
