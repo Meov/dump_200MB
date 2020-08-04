@@ -14,25 +14,27 @@ def files_name_get(file_dir,name):
     if name:
         name_str = name              
     has_tar_file = False    #没输入名字会遍历目录 找到存在的文件
-    for root, dirs, files in os.walk(file_dir):  
-        for file_ in files:
-            if ((name_str in file_) and (name_format in file_)):   #ensure "name" and "name_format" are included in the file
-                #print("name:"+name+"file+"+file_)
-                file_ = file_.split('-',2)
-                target_file.append( file_[0]+'-'+file_[1])  #get data string name
-                has_tar_file = True
+    for files in os.listdir(file_dir):  
+        if ((name_str in files) and (name_format in files)):   #ensure "name" and "name_format" are included in the file
+            #print("name:"+name+"file+"+files)
+            file_ = files.split('-',2)
+            target_file.append( file_[0]+'-'+file_[1])  #get data string name
+            has_tar_file = True
     if not has_tar_file:
         print("path :%s has no dumped file-----> end up with -tar.bz2"%file_dir)
         exit(0)
     return list(set(target_file))   #去重返回
-
 def file_extract(sorted_file,file_source_dir,target_name,file_target_dir):
     for i in range(len(sorted_file)):
         for files_ in os.listdir(file_source_dir):
             if ((sorted_file[i] in files_) and (name_format in files_)):
                 data_to_extrat = os.path.join(file_source_dir,files_)
-                print(data_to_extrat)
-                tar = tarfile.open(data_to_extrat,"r:*",encoding='utf-8')
+                #print(data_to_extrat)  
+                try:
+                    tar = tarfile.open(data_to_extrat,"r:*",encoding='utf-8')
+                except IOError as e:
+                    print(e)
+                    exit(1)
                 tar.extractall(path=file_target_dir)
                 file_target_path = os.path.join(file_target_dir,tar.getnames()[0])
                 tar.close()
@@ -51,7 +53,7 @@ def get_file_dir(file_dir_opt):
     if file_dir_opt:
         #print(file_dir_opt)
         if not (os.path.isdir(file_dir_opt) or (os.path.exists(file_dir_opt))):
-            print("you entered: %s is not a directory!"%file_dir_opt)
+            print("you entered: %s cannot find!"%file_dir_opt)
             exit(0)
         else:
             file_dir = file_dir_opt
@@ -81,29 +83,29 @@ def main():
     file_path_source_entered = ""
     file_path_dest_entered = ""
     file_name_entered = ""
-    opts, _ = getopt.getopt(sys.argv[1:],'d:n:t:',["path","name","target-path"])
-    for opt,value in opts:
-        if opt in ("-d","--path"):
-            file_path_source_entered = value
-            print(file_path_source_entered)
-        if opt in ("-n","name"):    #这里跟C语言不一样...  
-            file_name_entered = value
-            print(file_name_entered)
-        if opt in ("-t","--target-path"):
-            file_path_dest_entered = value
-            print(file_path_dest_entered)
-        pass
-   
+    try:
+        opts, _ = getopt.getopt(sys.argv[1:],'d:n:t:',["path","name","target-path"])
+        for opt,value in opts:
+            if opt in ("-d","--path"):
+                file_path_source_entered = value
+                print(file_path_source_entered)
+            if opt in ("-n","name"):    #这里跟C语言不一样...  
+                file_name_entered = value
+                print(file_name_entered)
+            if opt in ("-t","--target-path"):
+                file_path_dest_entered = value
+                print(file_path_dest_entered)
+            pass
+    except Exception as e:
+        print(e)
+        exit(1)
     file_source_dir = get_file_dir(file_path_source_entered)   #获得路径
     file_target_dir = get_file_dir(file_path_dest_entered)
-    
-    print("file_source_dir"+file_source_dir)
-    print("file_target_dir"+file_target_dir)
-    
+    #print("file_source_dir"+file_source_dir)
+    #print("file_target_dir"+file_target_dir)
     files_names = files_name_get(file_source_dir,file_name_entered)   #获得当前目录下去重的文件名
-    #print(files_name)
     file_save(files_names,file_source_dir,file_target_dir)              
-
+    #input("Tip: press Enter , close window!")
     return 0
 if __name__ == "__main__":
     main()
