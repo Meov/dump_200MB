@@ -5,6 +5,7 @@ import sys
 import bz2
 import re
 import getopt
+import time
 
 
 
@@ -33,31 +34,31 @@ def create_file(file_path,msg):
     f.write(msg)
     f.close
 
-def file_extract(sorted_file,file_source_dir,file_target_dir):
-    #create_file(file_path_dest+".bin","hello") 
-    
+
+
+def file_extract(sorted_file,file_source_dir,target_name,file_target_dir):
+
     for i in range(len(sorted_file)):
         for files_ in os.listdir(file_source_dir):
-            #print(file_source_dir)
             if sorted_file[i] in files_:
-                
                 data_to_extrat = os.path.join(file_source_dir,files_)
-                print(data_to_extrat)
                 tar = tarfile.open(data_to_extrat,"r:*",encoding='utf-8')
-                tar.extractall()
-"""
-                tar = tarfile.open(files_,"r:*",encoding='utf-8')
-                names = tar.getnames()
-                for name in names:
-                    print(name)
-                    tar.extract(name,path = file_target_dir)
+                tar.extractall(path=file_target_dir)
+                file_target_path = os.path.join(file_target_dir,tar.getnames()[0])
                 tar.close()
-                """
-def file_save(files_names,file_source_dir): #get different files
+                file_data_save = os.path.join(file_target_dir,target_name+'.bin')
+                print(file_data_save)
+                with open(file_data_save,'a') as f:
+                    f.write(open(file_target_path,'r').read())
+                
+                time.sleep(3)
+                os.remove(file_target_path)
+
+def file_save(files_names,file_source_dir,file_target_dir): #get different files
     for i in range(len(files_names)):
         sorted_file = file_splitnumber_sort(files_names[i],file_source_dir)  #将某一name下按照split_number重新排列
         print(sorted_file)
-        file_extract(sorted_file,file_source_dir,"s")
+        file_extract(sorted_file,file_source_dir,files_names[i],file_target_dir)
     return 0
 def get_file_dir(file_dir_opt):
     if file_dir_opt:
@@ -91,7 +92,6 @@ def file_splitnumber_sort(file_name,path):    #将同一个文件（name-dumpedn
     return file_sorted_list
 
 def main():
-
     file_path_source_entered = ""
     file_path_dest_entered = ""
     file_name_entered = ""
@@ -116,7 +116,7 @@ def main():
     
     files_names = files_name_get(file_source_dir,file_name_entered)   #获得当前目录下去重的文件名
     #print(files_name)
-    file_save(files_names,file_source_dir)              
+    file_save(files_names,file_source_dir,file_target_dir)              
 
     return 0
 if __name__ == "__main__":
