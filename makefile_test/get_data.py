@@ -11,7 +11,6 @@ name_format = ".tar" #"tar.bz2"
 def files_name_get(file_dir,name):   
     target_file=[]   
     name_str = ""
-    
     if name:
         name_str = name              
     has_tar_file = False    #没输入名字会遍历目录 找到存在的文件
@@ -25,15 +24,7 @@ def files_name_get(file_dir,name):
     if not has_tar_file:
         print("path :%s has no dumped file-----> end up with -tar.bz2"%file_dir)
         exit(0)
-
     return list(set(target_file))   #去重返回
-
-def create_file(file_path,msg):
-    f=open(file_path,"a")
-    f.write(msg)
-    f.close
-
-
 
 def file_extract(sorted_file,file_source_dir,target_name,file_target_dir):
     for i in range(len(sorted_file)):
@@ -46,16 +37,13 @@ def file_extract(sorted_file,file_source_dir,target_name,file_target_dir):
                 file_target_path = os.path.join(file_target_dir,tar.getnames()[0])
                 tar.close()
                 file_data_save = os.path.join(file_target_dir,target_name+'.bin')
-                
-                
+                #open file and write files at the end  
                 with open(file_data_save,'a') as f:
                     f.write(open(file_target_path,'r').read())
                 os.remove(file_target_path)
-                
-
 def file_save(files_names,file_source_dir,file_target_dir): #get different files
     for i in range(len(files_names)):
-        sorted_file = file_splitnumber_sort(files_names[i],file_source_dir)  #将某一name下按照split_number重新排列
+        sorted_file = file_splitnumber_sort(files_names[i],file_source_dir)  #sorted the specific name "e.g. data-0"
         #print(sorted_file)
         file_extract(sorted_file,file_source_dir,files_names[i],file_target_dir)
     return 0
