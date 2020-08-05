@@ -1,3 +1,4 @@
+//branch arm
 #include <stdio.h>
 #include <string.h>
 #include <sys/vfs.h>
@@ -10,15 +11,19 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <time.h>
+#include <dirent.h>
+
 #define FILEPATHMAX 80
 #define MAX_NAME 80
-#define SPLITE_SIZE 1  //defualt
 #define MAX_DATA_SIZE 1024*1024*400
+
+#define VERSION "arm-0.2.1" //keep lasteet five data
+
 extern char *optarg;
 extern int optind,opterr,optopt;
-
+unsigned int record_num;
 struct file_property{
-	unsigned long long base_addr;    		//base address of data
+	unsigned long base_addr;    		//base address of data
 	unsigned int data_length;   			//lenth of data to be saved
 	int split_size;			   				//split size
 	char file_save_path[FILEPATHMAX];  		//file save path
@@ -27,7 +32,7 @@ struct file_property{
 struct file_property fileproperty = {
 	.base_addr = 0,
 	.data_length = 0,
-	.split_size = SPLITE_SIZE,
+	.split_size = 1,
 	.name = "data",
 	.file_save_path = "cl", //current location
 };
@@ -37,7 +42,7 @@ static int isdigitstr(char *str)
 }
 static int ishexstr(char *str)
 {
-	return (strspn(str, "0123456789ABCDEFabcdef")==strlen(str)); 
+	return (strspn(str, "0123456789ABCDEFabcdefxX")==strlen(str)); 
 }
 typedef enum EMDiskSizeType_{
 	TOTAL_SIZE,
@@ -79,14 +84,16 @@ static unsigned long long get_diskSize(char *strDir, EMDiskSizeType  disk_type){
 		return llcount;
 	}
 }
-static int  data_dumped(struct file_property fp, int data_num,long len,int is_single_finish){
+static int data_dumped(struct file_property fp, int data_num,long len,int is_single_finish){
 	char full_file_path[FILEPATHMAX];
 	char full_file_name[MAX_NAME];
 	FILE *file = NULL;
 	unsigned char *pu8 = NULL;
 	char cmd_cmmand[200];
-	sprintf(full_file_path,"%s/%s-%d.txt",fp.file_save_path,fp.name,data_num);
-	sprintf(full_file_name,"%s/%s-%d",fp.file_save_path,fp.name,data_num);
+	//e.g. test-1-0  format====>name-recordnumer-splitnumber
+	sprintf(full_file_name,"%s-%d-%d",fp.name,record_num,data_num);
+	sprintf(full_file_path,"%s/%s.bin",fp.file_save_path,full_file_name);
+	
 	file = fopen(full_file_path,"a+");  //create the numbered file
 	if(file == NULL){
 		printf("file:%s opened err\n",full_file_path);
@@ -98,14 +105,13 @@ static int  data_dumped(struct file_property fp, int data_num,long len,int is_si
 	fwrite(pu8,sizeof(char),len,file);  //4096 bytes write
 	if(is_single_finish){
 		printf("split %d write finished!\n",data_num);
-		sprintf(cmd_cmmand,"%s %s/%s-%d.tar.gz -C %s/ %s-%d.txt","tar -czPf",fp.file_save_path,fp.name,data_num,
-		fp.file_save_path,fp.name,data_num);  //tar -czvf ***.tar ***.bin
+		sprintf(cmd_cmmand,"%s %s/%s.tar.bz2 -C %s/ %s.bin","tar -czPf",fp.file_save_path,full_file_name,
+		fp.file_save_path,full_file_name);  //tar -czvf ***.tar ***.bin
 		//printf("cmd_cmmand: %s\n",cmd_cmmand);
 		system(cmd_cmmand);													   
-		sprintf(cmd_cmmand,"%s %s/%s-%d.txt","rm ",fp.file_save_path,fp.name,data_num);   //rm ***.txt
-		printf("cmd_cmmand: %s\n",cmd_cmmand);
+		sprintf(cmd_cmmand,"%s %s/%s.bin","rm ",fp.file_save_path,full_file_name);   //rm ***.txt
+		//printf("cmd_cmmand: %s\n",cmd_cmmand);
 		system(cmd_cmmand);	
-		
 		is_single_finish = 0;
 	}
 	fclose(file);
@@ -124,7 +130,7 @@ static int data_separated_dump(struct file_property fp){
 	printf("==============>file save length: %d\n",fp.data_length);
 	printf("==============>file split  size: %d\n",fp.split_size);
 	printf("==============>file split  name: %s\n",fp.name);
-	printf("==============>file base   addr: 0x%llx\n",fp.base_addr);
+	printf("==============>file base   addr: 0x%lx\n",fp.base_addr);
 
 	for(split_num = 0; split_num < fp.split_size; split_num++){
 		//write one split ..
@@ -136,31 +142,36 @@ static int data_separated_dump(struct file_property fp){
 			data_dumped(fp,split_num,page_size,is_single_finish);
 			fp.base_addr += page_size;    //addr offset 4096Kb
 		}
-		printf("fp.base_addr: %llx\n",fp.base_addr);
+		printf("fp.base_addr: %lx\n",fp.base_addr);
 	}
 	return OK;
 }
 static int ap_query_cp_memory(struct file_property fp){
+	//const char *path = "dev/modem";
+	const char *path = "/home/chao-zhang/0.txt";
 	int fd = -1;
 	void *map_addr = NULL;
-	fd = open("/home/chao-zhang/0.txt",O_RDWR);
+	fd = open(path,O_RDWR);
 	if(fd < 0){
-		printf("no file/n");
+		printf("ERR: can't open file:  %s\n",path);
+		close(fd);
+		return -ENOMEM;
 	}
-	map_addr = mmap(NULL,201*1024*1024,PROT_READ,MAP_SHARED,fd,0);
+	map_addr = mmap(NULL,201*1024*1024,PROT_READ,MAP_SHARED,fd,0);  //201Mb Virtual space
 	if(map_addr == MAP_FAILED){
 		close(fd);
 		printf("ERR: map_addr :%s\n",(char *)map_addr);
 		return -ENOMEM;
 	}
 	printf("\n\n");
-	printf("=====================>file vertual base addr = %llx\n", (unsigned long long )map_addr);
-	fp.base_addr += (unsigned long long )map_addr;
-	printf("=====================>file vertual base addr + base_addr given = s%llx\n",fp.base_addr);
+	//printf("=====================>file vertual base addr = %llx\n", (unsigned long long )map_addr);
+	fp.base_addr += (unsigned long )map_addr;
+	printf("=====================>file vertual base addr + base_addr given = s%lx\n",fp.base_addr);
 	printf("\n\n");
 	data_separated_dump(fp);
-	munmap(map_addr,200*1024*1024);
+	munmap(map_addr,201*1024*1024);
 	close(fd);
+	return OK;
 }
 //parameers check
 static int parameter_cheak(struct file_property *fp){
@@ -196,11 +207,14 @@ static int parameter_cheak(struct file_property *fp){
 		printf(" ------------------>addr  must be an intergral muiltiple of 4096byte\n");
 		return FILE_ERR;
 	}
-
 	//length check!
 	if(fp->data_length>MAX_DATA_SIZE){
 		printf("ERR: length should smaller than 400MB\n");
 		return DATA_TOOBIG;
+	}
+	if(fp->data_length == 0){
+		printf("data length :%d must be entered!\n",fp->data_length);
+		return FILE_ERR;
 	}
 	if(fp->data_length < fp->split_size * page_size){
 		printf("data length :%d should larger than split_size*page_size = %ld\n",fp->data_length,fp->split_size * page_size);
@@ -219,14 +233,16 @@ static int parse_path_option(char* file_path,struct file_property *fp){
 }
 //hex only default
 static int parse_data_addr_option(char *data_addr, struct file_property *fp){
-	unsigned long long data_base_addr = 0;
+	unsigned long data_base_addr = 0;
 	
 	if(!ishexstr(data_addr)){
 		printf("ERR: -a: HEX ONLY\n");
 		return NOT_NUMBER;
 	}
-	sscanf(data_addr,"%llx",&data_base_addr); 
-	printf("---------------------------> addr hex: %llx  dec: %lld\n",data_base_addr,data_base_addr);
+
+	data_base_addr = strtoul(data_addr,NULL,16); //converts the string to an unsigned long int 
+	//sscanf(data_addr,"%llx",&data_base_addr); 
+	printf("---------------------------> addr hex: %lx  dec: %ld\n",data_base_addr,data_base_addr);
 
 	fp->base_addr = data_base_addr;
 	return OK;
@@ -255,16 +271,79 @@ static int pares_name_option(char *name_option,struct file_property *fp){
 	strcpy(fp->name,name_option);
 	return OK;
 }
+static int file_existed_check(struct file_property fp){
+	DIR *dir = NULL;
+    struct dirent *ptr;
+	dir = opendir(fp.file_save_path);
+	unsigned int writed_number = 0;
+	if(dir == NULL){
+		return FILE_ERR;
+	}
+	char record_number_addr[20];
+	char *dot_ret = NULL;
+	char *line_ret = NULL;
+	char *line_ret_ = NULL;
+	char num_line_str[20];
+	char record_num_str[20];
+	char cmd_cmmand[200];
+	/*
+	e.g.   data-10-1.tar.gz
+		   data===> "name"   10===>"record number"  1:====>"split number"
+
+
+		(1)	dot_ret = string begin at first "."  line_ret =  string begin at first "-" 
+		(2)	num_line_str = string "10-1"
+		(3) line_ret_ = string begin at "-" of num_line_str
+		(4) record_number_addr = string "10"
+		complex!!!
+	*/
+	while((ptr = readdir(dir)) != NULL){
+		dot_ret = strstr(ptr->d_name,".tar.bz2"); //find the file end with .tar.gz
+		if(dot_ret != NULL){
+			line_ret = strstr(ptr->d_name,"-");
+			if(strlen(fp.name) == ((line_ret-ptr->d_name)/sizeof(char))){ //same length
+				if(!strncmp(fp.name,ptr->d_name,strlen(fp.name))){		  //same name string==>same named file 
+					strncpy(num_line_str,line_ret+1,(dot_ret-line_ret)/sizeof(char)); //get the record number
+					line_ret_ = strstr(num_line_str,"-");		
+					strncpy(record_number_addr,num_line_str,(line_ret_-num_line_str)/sizeof(char));				
+					sscanf(record_number_addr,"%d",&record_num);
+					memset(record_number_addr,0,20);  //clear record_num_str[]	
+					if(record_num > writed_number){
+						writed_number = record_num;
+					}
+					if(writed_number >= 4){
+						sprintf(cmd_cmmand,"%s %s/%s-*.tar.bz2","rm ",fp.file_save_path,fp.name);   //rm ***.txt
+						printf("++++++++++++++++++++++++++cmd_cmmand: %s\n",cmd_cmmand);
+						system(cmd_cmmand);
+						record_num = 0;
+					}else{
+						record_num = writed_number + 1;
+					}
+				}	
+			}
+		}
+	}
+    closedir(dir);
+	//printf("======================================>record_num: %d\n",record_num);
+    return 0;
+}
+
 int main(int argc,char *argv[]){
 	
 	struct file_property fp_set;
 	fp_set = fileproperty;
 	int ret = 0;
 	int cmd = 0;
+	
+	printf("VERSION:%s\n",VERSION);
+	
 	if(argc<2){	
 		printf("Usage:\n");
-		printf("      -a:base addrress <hex format>      -l:data lenth <dec format> (n*4096)\n");
-		printf("      [-d:location]      [-s:split number(dec format)]      [-n:name] \n");
+		printf("	-l:data lenth     <dec format>  (n*4096)\n");
+		printf("	[-a:base addrress <hex format>] default:0\n");
+		printf("	[-d:location]                   default:current path\n");
+		printf("	[-s:split number  <dec format>  default:1]\n");
+		printf("	[-n:name                        default:data-dumpednumber-splitnumber]\n");
 		return FEW_PARAMETERS;
 	}	
 	//printf("pid : %d\n",getpid());
@@ -336,20 +415,22 @@ int main(int argc,char *argv[]){
 	}
 	
 	//check the addr and lent infomation
-	if((fp_set.base_addr < 0 )||(fp_set.data_length<=0)){
+	if((fp_set.base_addr < 0 )||(fp_set.data_length == 0)){
 		printf("ERR: option data_addr(-a) and data_lenth(-l) are required!\n");
 		return -1;
 	}
-	//option parameter check path and disk size check
+	//option parameter check path and disk size check	
 	if(parameter_cheak(&fp_set)!=OK) return -1;
-	fileproperty = fp_set;
+	//check wether has 5th data savedS
+	file_existed_check(fp_set);  
 
+	fileproperty = fp_set;
 	printf("Entered:\n");
 	printf("==============>file save   path: %s\n",fileproperty.file_save_path);
 	printf("==============>file save length: %d\n",fileproperty.data_length);
 	printf("==============>file split  size: %d\n",fileproperty.split_size);
 	printf("==============>file split  name: %s\n",fileproperty.name);
-	printf("==============>file base   addr: 0x%llx\n",fileproperty.base_addr);
+	printf("==============>file base   addr: 0x%lx\n",fileproperty.base_addr);
 
 	ap_query_cp_memory(fileproperty);
 	
@@ -370,12 +451,5 @@ int main(int argc,char *argv[]){
 	fp.base_addr = (unsigned long long)data;
 	data_dumped(fp,0,total_size,0);
 	
-
-	char time_[32];
-	time_t time_seconds = time(0);
-	struct tm* now_time = localtime(&time_seconds);
-	//gettimeofday(&timer_val,NULL);
-	strcpy(time_ ,ctime(&time_seconds));
-	printf("time:%s\n",time_);
 	*/
 }
