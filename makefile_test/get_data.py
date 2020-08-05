@@ -5,9 +5,9 @@ import sys
 import bz2
 import re
 import getopt
+virsion = "arm-0.3.0"
 
-
-name_format = ".tar" #"tar.bz2" 
+name_format = ".tar.bz2" #"tar.bz2" 
 def files_name_get(file_dir,name):   
     target_file=[]   
     name_str = ""
@@ -21,7 +21,7 @@ def files_name_get(file_dir,name):
             target_file.append( file_[0]+'-'+file_[1])  #get data string name
             has_tar_file = True
     if not has_tar_file:
-        print("path :%s has no dumped file-----> end up with -tar.bz2"%file_dir)
+        print("path :%s has no dumped file-----> end up with %s"%(file_dir,name_format))
         exit(0)
     return list(set(target_file))   #去重返回
 def file_extract(sorted_file,file_source_dir,target_name,file_target_dir):
