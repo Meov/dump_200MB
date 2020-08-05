@@ -288,6 +288,9 @@ static int file_existed_check(struct file_property fp){
 	char cmd_cmmand[200];
 	/*
 	e.g.   data-10-1.tar.gz
+		   data===> "name"   10===>"record number"  1:====>"split number"
+
+
 		(1)	dot_ret = string begin at first "."  line_ret =  string begin at first "-" 
 		(2)	num_line_str = string "10-1"
 		(3) line_ret_ = string begin at "-" of num_line_str
@@ -299,8 +302,8 @@ static int file_existed_check(struct file_property fp){
 		if(dot_ret != NULL){
 			line_ret = strstr(ptr->d_name,"-");
 			if(strlen(fp.name) == ((line_ret-ptr->d_name)/sizeof(char))){ //same length
-				if(!strncmp(fp.name,ptr->d_name,strlen(fp.name))){		 //same string==>same named file 
-					strncpy(num_line_str,line_ret+1,(dot_ret-line_ret)/sizeof(char));
+				if(!strncmp(fp.name,ptr->d_name,strlen(fp.name))){		  //same name string==>same named file 
+					strncpy(num_line_str,line_ret+1,(dot_ret-line_ret)/sizeof(char)); //get the record number
 					line_ret_ = strstr(num_line_str,"-");		
 					strncpy(record_number_addr,num_line_str,(line_ret_-num_line_str)/sizeof(char));				
 					sscanf(record_number_addr,"%d",&record_num);
@@ -308,16 +311,15 @@ static int file_existed_check(struct file_property fp){
 					if(record_num > writed_number){
 						writed_number = record_num;
 					}
-				}
-
-				if(writed_number >= 4){
-					sprintf(cmd_cmmand,"%s %s/%s-*.tar.bz2","rm ",fp.file_save_path,fp.name);   //rm ***.txt
-					printf("++++++++++++++++++++++++++cmd_cmmand: %s\n",cmd_cmmand);
-					system(cmd_cmmand);
-					record_num = 0;
-				}else{
-					record_num = writed_number + 1;
-				}
+					if(writed_number >= 4){
+						sprintf(cmd_cmmand,"%s %s/%s-*.tar.bz2","rm ",fp.file_save_path,fp.name);   //rm ***.txt
+						printf("++++++++++++++++++++++++++cmd_cmmand: %s\n",cmd_cmmand);
+						system(cmd_cmmand);
+						record_num = 0;
+					}else{
+						record_num = writed_number + 1;
+					}
+				}	
 			}
 		}
 	}
