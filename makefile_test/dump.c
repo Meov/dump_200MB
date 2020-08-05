@@ -17,11 +17,7 @@
 #define MAX_NAME 80
 #define MAX_DATA_SIZE 1024*1024*400
 
-<<<<<<< HEAD
-#define VERSION  "arm-0.3.0" //keep lasteet five data
-=======
-#define VERSION "arm-0.2.1" //keep lasteet five data
->>>>>>> dev/dump_arm
+#define VERSION  "arm-0.3.1" //keep lasteet five data
 
 extern char *optarg;
 extern int optind,opterr,optopt;
@@ -151,13 +147,8 @@ static int data_separated_dump(struct file_property fp){
 	return OK;
 }
 static int ap_query_cp_memory(struct file_property fp){
-<<<<<<< HEAD
 	const char *path = "/dev/modem";
 	//const char *path = "/home/chao-zhang/000.mp4";
-=======
-	//const char *path = "dev/modem";
-	const char *path = "/home/chao-zhang/000.mp4";
->>>>>>> dev/dump_arm
 	int fd = -1;
 	void *map_addr = NULL;
 	fd = open(path,O_RDWR);

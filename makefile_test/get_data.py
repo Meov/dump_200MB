@@ -5,7 +5,7 @@ import sys
 import bz2
 import re
 import getopt
-virsion = "arm-0.3.0"
+VERSION = "arm-0.3.1"
 
 name_format = ".tar.bz2" #"tar.bz2" 
 def files_name_get(file_dir,name):   
