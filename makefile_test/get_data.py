@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-   
-
 import tarfile
 import os
 import sys
@@ -41,10 +40,11 @@ def file_extract(sorted_file,file_source_dir,target_name,file_target_dir):
                 tar.close()
                 file_data_save = os.path.join(file_target_dir,target_name+'.bin')
                 #open file and write files at the end  
-                with open(file_data_save,'ab') as f:
-                    f.write(open(file_target_path,'rb').read())
+                #参考：https://blog.51cto.com/14320361/2486142
+
+                with open(file_data_save,'ab') as f:   #以二进制格式打开一个文件，改文件为追加模式
+                    f.write(open(file_target_path,'rb').read())  #以二进制格式读取一个文件，并将其写入到目标文件夹 
                 os.remove(file_target_path)
-                
 def file_save(files_names,file_source_dir,file_target_dir): #get different files
     for i in range(len(files_names)):
         sorted_file = file_splitnumber_sort(files_names[i],file_source_dir)  #sorted the specific name "e.g. data-0"
@@ -107,7 +107,7 @@ def main():
     #print("file_target_dir"+file_target_dir)
     files_names = files_name_get(file_source_dir,file_name_entered)   #获得当前目录下去重的文件名
     file_save(files_names,file_source_dir,file_target_dir)              
-    print("ok!")
+    print("OK!")
     return 0
 if __name__ == "__main__":
     main()
