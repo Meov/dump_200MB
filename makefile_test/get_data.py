@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-   
+
 import tarfile
 import os
 import sys
@@ -40,9 +41,10 @@ def file_extract(sorted_file,file_source_dir,target_name,file_target_dir):
                 tar.close()
                 file_data_save = os.path.join(file_target_dir,target_name+'.bin')
                 #open file and write files at the end  
-                with open(file_data_save,'a') as f:
-                    f.write(open(file_target_path,'r').read())
+                with open(file_data_save,'ab') as f:
+                    f.write(open(file_target_path,'rb').read())
                 os.remove(file_target_path)
+                
 def file_save(files_names,file_source_dir,file_target_dir): #get different files
     for i in range(len(files_names)):
         sorted_file = file_splitnumber_sort(files_names[i],file_source_dir)  #sorted the specific name "e.g. data-0"
@@ -105,7 +107,7 @@ def main():
     #print("file_target_dir"+file_target_dir)
     files_names = files_name_get(file_source_dir,file_name_entered)   #获得当前目录下去重的文件名
     file_save(files_names,file_source_dir,file_target_dir)              
-    #input("Tip: press Enter , close window!")
+    print("ok!")
     return 0
 if __name__ == "__main__":
     main()

@@ -10,5 +10,6 @@
         "errno.h": "c",
         "time.h": "c",
         "sstream": "c"
-    }
+    },
+    "python.pythonPath": "/usr/bin/python"
 }
