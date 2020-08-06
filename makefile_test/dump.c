@@ -105,8 +105,8 @@ static int data_dumped(struct file_property fp, int data_num,long len,int is_sin
 	fwrite(pu8,sizeof(char),len,file);  //4096 bytes write
 	if(is_single_finish){
 		printf("split %d write finished!\n",data_num);
-		sprintf(cmd_cmmand,"%s %s/%s.tar.bz2 -C %s/ %s.bin","tar -czPf",fp.file_save_path,full_file_name,
-		fp.file_save_path,full_file_name);  //tar -czvf ***.tar ***.bin
+		sprintf(cmd_cmmand,"%s %s/%s.tar.bz2 -C %s/ %s.bin","tar -cjPf",fp.file_save_path,full_file_name,
+		fp.file_save_path,full_file_name);  //tar -cjPf ***.tar.bz2 ***.bin
 		//printf("cmd_cmmand: %s\n",cmd_cmmand);
 		system(cmd_cmmand);													   
 		sprintf(cmd_cmmand,"%s %s/%s.bin","rm ",fp.file_save_path,full_file_name);   //rm ***.txt
@@ -148,7 +148,7 @@ static int data_separated_dump(struct file_property fp){
 }
 static int ap_query_cp_memory(struct file_property fp){
 	const char *path = "/dev/modem";
-	//const char *path = "/home/chao-zhang/000.mp4";
+	//const char *path = "/home/chao-zhang/1.mp4";
 	int fd = -1;
 	void *map_addr = NULL;
 	fd = open(path,O_RDWR);
