@@ -15,7 +15,7 @@
 
 #define FILEPATHMAX 80
 #define MAX_NAME 80
-#define MAX_DATA_SIZE 1024*1024*400
+#define MAX_DATA_SIZE 1024*1024*200
 
 #define VERSION  "arm-0.3.1" //keep lasteet five data
 
@@ -105,8 +105,8 @@ static int data_dumped(struct file_property fp, int data_num,long len,int is_sin
 	fwrite(pu8,sizeof(char),len,file);  //4096 bytes write
 	if(is_single_finish){
 		printf("split %d write finished!\n",data_num);
-		sprintf(cmd_cmmand,"%s %s/%s.tar.bz2 -C %s/ %s.bin","tar -cjPf",fp.file_save_path,full_file_name,
-		fp.file_save_path,full_file_name);  //tar -cjPf ***.tar.bz2 ***.bin
+		sprintf(cmd_cmmand,"%s %s/%s.tar.bz2 -C %s/ %s.bin","tar -cjvf",fp.file_save_path,full_file_name,
+		fp.file_save_path,full_file_name);  //tar -cjvf ***.tar.bz2 ***.bin
 		//printf("cmd_cmmand: %s\n",cmd_cmmand);
 		system(cmd_cmmand);													   
 		sprintf(cmd_cmmand,"%s %s/%s.bin","rm ",fp.file_save_path,full_file_name);   //rm ***.txt
@@ -158,7 +158,7 @@ static int ap_query_cp_memory(struct file_property fp){
 		close(fd);
 		return -ENOMEM;
 	}
-	map_addr = mmap(NULL,201*1024*1024,PROT_READ,MAP_SHARED,fd,0);  //201Mb Virtual space
+	map_addr = mmap(NULL,200*1024*1024,PROT_READ,MAP_SHARED,fd,0);  //201Mb Virtual space
 	if(map_addr == MAP_FAILED){
 		close(fd);
 		printf("ERR: map_addr :%s\n",(char *)map_addr);
@@ -170,7 +170,7 @@ static int ap_query_cp_memory(struct file_property fp){
 	printf("=====================>file vertual base addr + base_addr given = s%lx\n",fp.base_addr);
 	printf("\n\n");
 	data_separated_dump(fp);
-	munmap(map_addr,201*1024*1024);
+	munmap(map_addr,200*1024*1024);
 	close(fd);
 	return OK;
 }
