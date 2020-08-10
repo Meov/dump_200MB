@@ -147,7 +147,8 @@ static int data_separated_dump(struct file_property fp){
 	return OK;
 }
 static int ap_query_cp_memory(struct file_property fp){
-	const char *path = "/dev/modem";
+//	const char *path = "/dev/modem";
+	const char *path = "/mnt/hgfs/Share/work/linux-app/file_system/data-0.bin";
 	//const char *path = "/home/chao-zhang/1.mp4";
 	int fd = -1;
 	void *map_addr = NULL;
