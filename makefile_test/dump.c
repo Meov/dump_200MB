@@ -17,7 +17,7 @@
 #define MAX_NAME 80
 #define MAX_DATA_SIZE 1024*1024*200
 
-#define VERSION  "arm-0.3.1" //keep lasteet five data
+#define VERSION  "arm-0.3.2" //test ok! fix storage 200MB
 
 extern char *optarg;
 extern int optind,opterr,optopt;
@@ -99,7 +99,7 @@ static int data_dumped(struct file_property fp, int data_num,long len,int is_sin
 		printf("file:%s opened err\n",full_file_path);
 		return FILE_ERR;
 	}
-	fseek(file, 0, SEEK_END);//定位到文件末�
+	fseek(file, 0, SEEK_END);//定位到文件末�
 	pu8 = (unsigned char*)fp.base_addr;
 	//printf("file:%s created OK\n",full_file_path);
 	fwrite(pu8,sizeof(char),len,file);  //4096 bytes write
@@ -268,7 +268,7 @@ static int parse_slpit_option(char *split_size, struct file_property *fp){
 	fp->split_size = int_split_size;
 	return OK;
 }
-static int pares_name_option(char *name_option,struct file_property *fp){
+static int parse_name_option(char *name_option,struct file_property *fp){
 	strcpy(fp->name,name_option);
 	return OK;
 }
@@ -400,7 +400,7 @@ int main(int argc,char *argv[]){
 			break;
 		case 'n':  //name set
 			if(optarg){
-				ret = pares_name_option(optarg,&fp_set);
+				ret = parse_name_option(optarg,&fp_set);
 				if (ret!= OK)
 				{
 					exit(6);
