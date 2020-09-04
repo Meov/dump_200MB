@@ -106,7 +106,7 @@ static int data_dumped(struct file_property fp, int data_num,long len,int is_sin
 	if(is_single_finish){
 		printf("split %d write finished!\n",data_num);
 		sprintf(cmd_cmmand,"%s %s/%s.tar.bz2 -C %s/ %s.bin","tar -cjvf",fp.file_save_path,full_file_name,
-		fp.file_save_path,full_file_name);  //tar -cjvf ***.tar.bz2 ***.bin
+				fp.file_save_path,full_file_name);   //tar -cjvf ***.tar.bz2 ***.bin
 		//printf("cmd_cmmand: %s\n",cmd_cmmand);
 		system(cmd_cmmand);													   
 		sprintf(cmd_cmmand,"%s %s/%s.bin","rm ",fp.file_save_path,full_file_name);   //rm ***.txt
@@ -156,7 +156,7 @@ static int ap_query_cp_memory(struct file_property fp){
 		close(fd);
 		return -ENOMEM;
 	}
-	map_addr = mmap(NULL,200*1024*1024,PROT_READ,MAP_SHARED,fd,0);  //201Mb Virtual space
+	map_addr = mmap(NULL,200*1024*1024,PROT_READ,MAP_SHARED,fd,0);  //200Mb Virtual space
 	if(map_addr == MAP_FAILED){
 		close(fd);
 		printf("ERR: map_addr :%s\n",(char *)map_addr);
@@ -208,7 +208,7 @@ static int parameter_cheak(struct file_property *fp){
 	}
 	//length check!
 	if(fp->data_length>MAX_DATA_SIZE){
-		printf("ERR: length should smaller than 400MB\n");
+		printf("ERR: length should smaller than 200MB\n");
 		return DATA_TOOBIG;
 	}
 	if(fp->data_length == 0){
