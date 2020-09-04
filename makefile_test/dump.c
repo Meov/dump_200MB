@@ -17,7 +17,7 @@
 #define MAX_NAME 80
 #define MAX_DATA_SIZE 1024*1024*200
 
-#define VERSION  "arm-0.3.2" //test ok! fix storage 200MB
+#define VERSION  "arm-0.3.3" //test ok! fix storage 200MB
 
 extern char *optarg;
 extern int optind,opterr,optopt;
@@ -25,7 +25,7 @@ unsigned int record_num;
 struct file_property{
 	unsigned long base_addr;    		//base address of data
 	unsigned int data_length;   			//lenth of data to be saved
-	int split_size;			   				//split size
+	unsigned int split_size;			   				//split size
 	char file_save_path[FILEPATHMAX];  		//file save path
 	char name[MAX_NAME];             	  	//name
 };
@@ -119,11 +119,9 @@ static int data_dumped(struct file_property fp, int data_num,long len,int is_sin
 	return OK;
 }
 static int data_separated_dump(struct file_property fp){
-	unsigned char* data_started = NULL;
-	unsigned int data_offset = 0;
 	unsigned int split_num;
 	unsigned int split_4kb_num;
-	long page_size = sysconf(_SC_PAGESIZE);
+	unsigned long page_size = sysconf(_SC_PAGESIZE);
 	int is_single_finish = 0;
 	printf("Executed:\n");
 	printf("==============>file save   path: %s\n",fp.file_save_path);
